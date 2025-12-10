@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { Edit, Trash2, Plus } from "lucide-react";
@@ -104,11 +104,31 @@ const initialProducts = [
 
 export function AdminProductsPage() {
   const router = useRouter();
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('adminProducts');
+      if (saved) {
+        return JSON.parse(saved);
+      } else {
+        // Initialize with default products
+        localStorage.setItem('adminProducts', JSON.stringify(initialProducts));
+        return initialProducts;
+      }
+    }
+    return initialProducts;
+  });
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
 
+  // Save to localStorage whenever products change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('adminProducts', JSON.stringify(products));
+    }
+  }, [products]);
+
   const handleDelete = (id: number) => {
-    setProducts(products.filter(p => p.id !== id));
+    const updatedProducts = products.filter(p => p.id !== id);
+    setProducts(updatedProducts);
     setDeleteConfirm(null);
     alert(`Product deleted successfully!`);
   };

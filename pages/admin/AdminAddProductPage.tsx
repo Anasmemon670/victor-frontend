@@ -1,14 +1,16 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { ArrowLeft, Upload, Package, X } from "lucide-react";
 
 export function AdminAddProductPage() {
   const router = useRouter();
-  const { id } = useParams() || {};
+  const params = useParams();
+  const id = params?.id as string | undefined;
   const isEdit = Boolean(id);
 
   const [formData, setFormData] = useState({
@@ -28,6 +30,47 @@ export function AdminAddProductPage() {
 
   const [images, setImages] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load product data when editing
+  useEffect(() => {
+    if (isEdit && id && typeof window !== 'undefined') {
+      let existingProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]');
+      
+      // If no products in localStorage, initialize with empty array (products should be added via AdminProductsPage)
+      if (existingProducts.length === 0) {
+        console.warn('No products found in localStorage. Please add products first.');
+        return;
+      }
+      
+      const productId = parseInt(id as string);
+      const product = existingProducts.find((p: any) => p.id === productId);
+      
+      if (product) {
+        setFormData({
+          name: product.name || "",
+          price: product.price?.toString() || "",
+          category: product.category || "",
+          description: product.description || "",
+          discount: product.discount?.toString() || "0",
+          onOffer: product.onOffer || false,
+          bigOffer: product.bigOffer || false,
+          productType: "internal",
+          externalUrl: "",
+          supplier: "no-supplier",
+          supplierProductId: "",
+          autoOrder: false
+        });
+        if (product.image) {
+          setImages([product.image]);
+        }
+      } else {
+        console.error(`Product with ID ${productId} not found`);
+        alert(`Product with ID ${productId} not found. Redirecting to products page.`);
+        router.push('/admin/products');
+      }
+    }
+  }, [isEdit, id, router]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -54,14 +97,114 @@ export function AdminAddProductPage() {
       return;
     }
 
-    alert(isEdit ? "Product updated successfully!" : "Product added successfully!");
+    // Get existing products from localStorage
+    const existingProducts = typeof window !== 'undefined' 
+      ? JSON.parse(localStorage.getItem('adminProducts') || '[]')
+      : [];
+
+    if (isEdit && id) {
+      const productId = parseInt(id as string);
+      // Find existing product to preserve its image if no new images added
+      const existingProduct = existingProducts.find((p: any) => p.id === productId);
+      
+      if (!existingProduct) {
+        alert(`Product with ID ${productId} not found. Please try again.`);
+        router.push('/admin/products');
+        return;
+      }
+      
+      // Get image URL (use first image if available, otherwise use existing or generate one)
+      const productImage = images.length > 0 
+        ? images[0] 
+        : (existingProduct?.image || `https://source.unsplash.com/400x300/?product,tech,${formData.name}`);
+
+      // Update existing product
+      const updatedProducts = existingProducts.map((p: any) => 
+        p.id === productId
+          ? {
+              ...p,
+              name: formData.name,
+              price: parseFloat(formData.price),
+              category: formData.category,
+              description: formData.description,
+              discount: formData.discount ? parseInt(formData.discount) : 0,
+              onOffer: formData.onOffer,
+              bigOffer: formData.bigOffer,
+              image: productImage
+            }
+          : p
+      );
+      localStorage.setItem('adminProducts', JSON.stringify(updatedProducts));
+      alert("Product updated successfully!");
+    } else {
+      // Add new product
+      const newId = existingProducts.length > 0 
+        ? Math.max(...existingProducts.map((p: any) => p.id)) + 1 
+        : 1;
+      
+      // Get image URL for new product
+      const productImage = images.length > 0 
+        ? images[0] 
+        : `https://source.unsplash.com/400x300/?product,tech,${formData.name}`;
+      
+      const newProduct = {
+        id: newId,
+        name: formData.name,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        description: formData.description,
+        discount: formData.discount ? parseInt(formData.discount) : 0,
+        onOffer: formData.onOffer,
+        bigOffer: formData.bigOffer,
+        image: productImage
+      };
+
+      const updatedProducts = [...existingProducts, newProduct];
+      localStorage.setItem('adminProducts', JSON.stringify(updatedProducts));
+      alert("Product added successfully!");
+    }
+
     router.push("/admin/products");
   };
 
   const handleImageAdd = () => {
-    const newImage = `https://source.unsplash.com/400x300/?product,tech,${images.length + 1}`;
-    setImages([...images, newImage]);
-    console.log("Image added:", newImage);
+    // Trigger file input click
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size should be less than 5MB');
+        return;
+      }
+      
+      // Convert file to base64 data URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        setImages([...images, imageUrl]);
+      };
+      reader.onerror = () => {
+        alert('Error reading file. Please try again.');
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleImageRemove = (index: number) => {
@@ -170,6 +313,13 @@ export function AdminAddProductPage() {
           {/* Images */}
           <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white text-xl mb-4">Product Images</h2>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+            />
             <button
               type="button"
               onClick={handleImageAdd}

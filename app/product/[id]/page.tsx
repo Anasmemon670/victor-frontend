@@ -7,9 +7,6 @@ import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RefreshCw, ArrowLeft 
 import { products } from "@/components/data/products";
 import { useCart } from "@/context/CartContext";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
 export default function ProductDetailPage() {
     const params = useParams();
     const router = useRouter();

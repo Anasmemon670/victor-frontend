@@ -211,10 +211,6 @@ export function ProjectsPage() {
                       ))}
                     </div>
                   </div>
-
-                  <button className="w-full bg-slate-100 hover:bg-cyan-500 text-slate-900 hover:text-white py-3 rounded-lg transition-all group-hover:shadow-md" onClick={() => router.push(`/project/${project.title.toLowerCase().replace(/\s+/g, '-')}`)}>
-                    View Details
-                  </button>
                 </div>
               </motion.div>
             ))}
