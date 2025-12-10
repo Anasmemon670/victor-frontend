@@ -7,6 +7,19 @@ import { useRouter, useParams } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { ArrowLeft, Upload, Package, X } from "lucide-react";
 
+// Product type definition
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+  category: string;
+  description: string;
+  discount: number;
+  onOffer: boolean;
+  bigOffer: boolean;
+  image: string;
+}
+
 export function AdminAddProductPage() {
   const router = useRouter();
   const params = useParams();
@@ -35,7 +48,7 @@ export function AdminAddProductPage() {
   // Load product data when editing
   useEffect(() => {
     if (isEdit && id && typeof window !== 'undefined') {
-      let existingProducts = JSON.parse(localStorage.getItem('adminProducts') || '[]');
+      let existingProducts: Product[] = JSON.parse(localStorage.getItem('adminProducts') || '[]');
       
       // If no products in localStorage, initialize with empty array (products should be added via AdminProductsPage)
       if (existingProducts.length === 0) {
@@ -44,7 +57,7 @@ export function AdminAddProductPage() {
       }
       
       const productId = parseInt(id as string);
-      const product = existingProducts.find((p: any) => p.id === productId);
+      const product = existingProducts.find((p: Product) => p.id === productId);
       
       if (product) {
         setFormData({
@@ -98,14 +111,14 @@ export function AdminAddProductPage() {
     }
 
     // Get existing products from localStorage
-    const existingProducts = typeof window !== 'undefined' 
+    const existingProducts: Product[] = typeof window !== 'undefined' 
       ? JSON.parse(localStorage.getItem('adminProducts') || '[]')
       : [];
 
     if (isEdit && id) {
       const productId = parseInt(id as string);
       // Find existing product to preserve its image if no new images added
-      const existingProduct = existingProducts.find((p: any) => p.id === productId);
+      const existingProduct = existingProducts.find((p: Product) => p.id === productId);
       
       if (!existingProduct) {
         alert(`Product with ID ${productId} not found. Please try again.`);
@@ -119,7 +132,7 @@ export function AdminAddProductPage() {
         : (existingProduct?.image || `https://source.unsplash.com/400x300/?product,tech,${formData.name}`);
 
       // Update existing product
-      const updatedProducts = existingProducts.map((p: any) => 
+      const updatedProducts = existingProducts.map((p: Product) => 
         p.id === productId
           ? {
               ...p,
@@ -139,7 +152,7 @@ export function AdminAddProductPage() {
     } else {
       // Add new product
       const newId = existingProducts.length > 0 
-        ? Math.max(...existingProducts.map((p: any) => p.id)) + 1 
+        ? Math.max(...existingProducts.map((p: Product) => p.id)) + 1 
         : 1;
       
       // Get image URL for new product
