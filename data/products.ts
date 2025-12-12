@@ -179,3 +179,4 @@ export const products = [
         specifications: { "DPI": "20,000", "Polling Rate": "1000Hz", "Battery": "70 hours" }
     },
 ];
+

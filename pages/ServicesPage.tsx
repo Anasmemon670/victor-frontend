@@ -1,47 +1,9 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Zap, Cpu, Globe, Headphones, Shield, Rocket, Code, Smartphone } from "lucide-react";
+import { Zap, Rocket, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-const services = [
-  {
-    icon: Cpu,
-    title: "Technology Solutions",
-    description: "Cutting-edge technology solutions tailored to your business needs. We provide comprehensive IT infrastructure and consulting services.",
-    features: ["Cloud Computing", "IT Infrastructure", "System Integration", "Tech Consulting"]
-  },
-  {
-    icon: Code,
-    title: "Software Development",
-    description: "Custom software development services to bring your ideas to life. From web applications to mobile apps, we've got you covered.",
-    features: ["Web Development", "Mobile Apps", "Custom Software", "API Integration"]
-  },
-  {
-    icon: Globe,
-    title: "Digital Marketing",
-    description: "Boost your online presence with our comprehensive digital marketing strategies and solutions.",
-    features: ["SEO Optimization", "Social Media", "Content Marketing", "Analytics"]
-  },
-  {
-    icon: Shield,
-    title: "Cybersecurity",
-    description: "Protect your digital assets with our advanced cybersecurity solutions and monitoring services.",
-    features: ["Threat Detection", "Security Audits", "Data Protection", "Compliance"]
-  },
-  {
-    icon: Smartphone,
-    title: "Mobile Solutions",
-    description: "Innovative mobile solutions for iOS and Android platforms. Build engaging mobile experiences for your users.",
-    features: ["iOS Development", "Android Apps", "Cross-Platform", "App Maintenance"]
-  },
-  {
-    icon: Headphones,
-    title: "24/7 Support",
-    description: "Round-the-clock customer support to ensure your operations run smoothly without interruptions.",
-    features: ["Live Chat", "Phone Support", "Email Support", "Remote Assistance"]
-  },
-];
+import { services } from "@/data/services";
 
 const stats = [
   { number: "500+", label: "Projects Completed" },

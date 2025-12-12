@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, ChevronDown, Menu, X, LogOut, User as UserIcon, HelpCircle, ShoppingCart, MessageSquare, Mail } from "lucide-react";
+import { Search, ChevronDown, Menu, X, LogOut, User as UserIcon, HelpCircle, ShoppingCart, MessageSquare, Mail, Package } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -11,7 +11,6 @@ import logoImage from "../assets/77ac9b30465e2a638fe36d43d6692e10b6bf92e1.png";
 
 const pages = [
   { name: "Products", path: "/products" },
-  { name: "Orders", path: "/orders" },
   { name: "Blog", path: "/blog" },
   { name: "Projects", path: "/projects" },
   { name: "Services", path: "/services" },
@@ -112,6 +111,17 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8">
+
+            {/* Orders Link - Only visible when logged in */}
+            {user && (
+              <Link
+                href="/orders"
+                className="text-white hover:text-cyan-400 transition-colors font-medium text-sm flex items-center gap-2"
+              >
+                <Package className="w-5 h-5" />
+                <span>Orders</span>
+              </Link>
+            )}
 
             {/* Messages Icon */}
             <div className="relative">

@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, Clock, User } from "lucide-react";
-import { blogPosts, featuredPost } from "@/components/data/blogPosts";
+import { blogPosts, featuredPost } from "@/data/blogPosts";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 import { motion } from "motion/react";
 

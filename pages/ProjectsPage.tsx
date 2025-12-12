@@ -1,71 +1,9 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Cpu, Code, Globe, Shield, Smartphone, Headphones, CheckCircle, Calendar, Users } from "lucide-react";
+import { CheckCircle, Calendar, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-
-const completedProjects = [
-  {
-    icon: Cpu,
-    title: "Technology Solutions",
-    client: "TechCorp Global",
-    year: "2024",
-    description: "Delivered cutting-edge technology solutions including cloud computing infrastructure, IT system integration, and comprehensive tech consulting services.",
-    features: ["Cloud Computing", "IT Infrastructure", "System Integration", "Tech Consulting"],
-    status: "Completed",
-    image: "/images/products/usb-hub.png"
-  },
-  {
-    icon: Code,
-    title: "Software Development",
-    client: "StartupHub Inc",
-    year: "2024",
-    description: "Built custom web and mobile applications with seamless API integration, delivering a complete software solution from concept to deployment.",
-    features: ["Web Development", "Mobile Apps", "Custom Software", "API Integration"],
-    status: "Completed",
-    image: "/images/products/laptop-stand.png"
-  },
-  {
-    icon: Globe,
-    title: "Digital Marketing",
-    client: "BrandBoost Ltd",
-    year: "2024",
-    description: "Executed comprehensive digital marketing strategy that increased online presence by 300% through SEO optimization, social media campaigns, and content marketing.",
-    features: ["SEO Optimization", "Social Media", "Content Marketing", "Analytics"],
-    status: "Completed",
-    image: "/images/products/charging-pad.png"
-  },
-  {
-    icon: Shield,
-    title: "Cybersecurity",
-    client: "SecureBank Corp",
-    year: "2023",
-    description: "Implemented advanced cybersecurity solutions with 24/7 monitoring, threat detection, and complete compliance with industry standards.",
-    features: ["Threat Detection", "Security Audits", "Data Protection", "Compliance"],
-    status: "Completed",
-    image: "/images/products/laptop-stand.png"
-  },
-  {
-    icon: Smartphone,
-    title: "Mobile Solutions",
-    client: "MobileFirst Co",
-    year: "2023",
-    description: "Developed innovative mobile applications for both iOS and Android platforms with cross-platform compatibility and ongoing maintenance support.",
-    features: ["iOS Development", "Android Apps", "Cross-Platform", "App Maintenance"],
-    status: "Completed",
-    image: "/images/products/smart-watch.png"
-  },
-  {
-    icon: Headphones,
-    title: "24/7 Support System",
-    client: "GlobalTech Solutions",
-    year: "2023",
-    description: "Established round-the-clock customer support infrastructure with multi-channel assistance ensuring zero downtime for critical operations.",
-    features: ["Live Chat", "Phone Support", "Email Support", "Remote Assistance"],
-    status: "Completed",
-    image: "/images/products/headphones.png"
-  },
-];
+import { projects as completedProjects } from "@/data/projects";
 
 const stats = [
   { number: "6", label: "Projects Completed", icon: CheckCircle },

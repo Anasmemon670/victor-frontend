@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Star, Filter, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { products } from "@/components/data/products";
+import { products } from "@/data/products";
 import { useCart } from "@/context/CartContext";
 
 export function ProductsPage() {
@@ -16,9 +16,31 @@ export function ProductsPage() {
 
   const categories = ["All", "Audio", "Wearables", "Accessories", "Gaming", "Smart Home", "Storage"];
 
-  const filteredProducts = selectedCategory === "All"
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+  const filteredAndSortedProducts = useMemo(() => {
+    // First filter by category
+    let filtered = selectedCategory === "All"
+      ? products
+      : products.filter(p => p.category === selectedCategory);
+
+    // Then sort based on sortBy
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "price-low":
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case "price-high":
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case "rating":
+        sorted.sort((a, b) => b.rating - a.rating);
+        break;
+      case "featured":
+      default:
+        // Keep original order
+        break;
+    }
+    return sorted;
+  }, [selectedCategory, sortBy]);
 
   const handleAddToCart = (e: React.MouseEvent, product: typeof products[0]) => {
     e.stopPropagation();
@@ -99,12 +121,12 @@ export function ProductsPage() {
 
         {/* Products Count */}
         <p className="text-slate-600 mb-6">
-          Showing <span className="font-semibold">{filteredProducts.length}</span> products
+          Showing <span className="font-semibold">{filteredAndSortedProducts.length}</span> products
         </p>
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
-          {filteredProducts.map((product, index) => (
+          {filteredAndSortedProducts.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}

@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RefreshCw, ArrowLeft } from "lucide-react";
-import { products } from "@/components/data/products";
+import { products } from "@/data/products";
 import { useCart } from "@/context/CartContext";
 
 export default function ProductDetailPage() {

@@ -4,10 +4,10 @@ import logoImage from "../assets/77ac9b30465e2a638fe36d43d6692e10b6bf92e1.png";
 
 export function Footer() {
   const socialLinks = [
-    { icon: Twitter, href: "#", label: "Twitter", bg: "bg-slate-700" },
-    { icon: MessageSquare, href: "#", label: "Discord", bg: "bg-slate-700" },
-    { icon: Linkedin, href: "#", label: "LinkedIn", bg: "bg-slate-700" },
-    { icon: Facebook, href: "#", label: "Facebook", bg: "bg-slate-700" },
+    { icon: Twitter, href: "https://twitter.com", label: "Twitter", bg: "bg-slate-700" },
+    { icon: MessageSquare, href: "https://discord.com", label: "Discord", bg: "bg-slate-700" },
+    { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn", bg: "bg-slate-700" },
+    { icon: Facebook, href: "https://facebook.com", label: "Facebook", bg: "bg-slate-700" },
   ];
 
   const companyLinks = [

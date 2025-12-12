@@ -67,10 +67,10 @@ export function OtherOffers() {
             </p>
           </div>
           <button
-            onClick={() => router.push('/products')}
+            onClick={() => router.push('/offers')}
             className="text-cyan-600 hover:text-cyan-700 flex items-center gap-2 transition-colors"
           >
-            View All Products
+            View All Offers
             <span>→</span>
           </button>
         </motion.div>

@@ -1,10 +1,11 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Edit, Trash2, Plus } from "lucide-react";
+import { Edit, Trash2, Plus, ChevronDown } from "lucide-react";
+import { products as sharedProducts } from "@/data/products";
 
 // Product type definition
 interface Product {
@@ -19,114 +20,61 @@ interface Product {
   image: string;
 }
 
-// Function to get image based on product title
-const getProductImage = (productName: string): string => {
-  const name = productName.toLowerCase();
-  
-  if (name.includes("macbook") || name.includes("laptop")) {
-    return "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop";
-  }
-  if (name.includes("iphone") || name.includes("phone")) {
-    return "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=300&fit=crop";
-  }
-  if (name.includes("sony") || name.includes("headphone") || name.includes("earphone")) {
-    return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
-  }
-  if (name.includes("ipad") || name.includes("tablet")) {
-    return "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=400&h=300&fit=crop";
-  }
-  if (name.includes("dyson") || name.includes("vacuum")) {
-    return "https://images.unsplash.com/photo-1556912172-45b7abe8b7e4?w=400&h=300&fit=crop";
-  }
-  if (name.includes("peloton") || name.includes("bike") || name.includes("exercise")) {
-    return "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop";
+// Convert shared products to admin format
+const convertToAdminFormat = (product: typeof sharedProducts[0]): Product => {
+  // Extract discount percentage from string like "25% OFF" or calculate from prices
+  let discountPercent = 0;
+  if (product.discount) {
+    const match = product.discount.match(/(\d+)%/);
+    if (match) {
+      discountPercent = parseInt(match[1]);
+    } else if (product.originalPrice && product.price) {
+      discountPercent = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+    }
   }
   
-  // Default image
-  return "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop";
+  const hasDiscount = discountPercent > 0;
+  const isBigOffer = discountPercent >= 25; // Consider 25%+ as big offer
+  
+  return {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    category: product.category,
+    description: product.description,
+    discount: discountPercent,
+    onOffer: hasDiscount,
+    bigOffer: isBigOffer,
+    image: product.image
+  };
 };
 
-const initialProducts = [
-  {
-    id: 1,
-    name: "MacBook Pro M3 16\"",
-    price: 2249.99,
-    category: "Electronics",
-    description: "Powerful laptop with M3 chip, 16GB RAM, 512GB SSD.",
-    discount: 10,
-    onOffer: true,
-    bigOffer: true,
-    image: getProductImage("MacBook Pro M3 16\"")
-  },
-  {
-    id: 2,
-    name: "iPhone 15 Pro Max",
-    price: 1199.99,
-    category: "Electronics",
-    description: "Latest iPhone with titanium design and A17 Pro chip.",
-    discount: 15,
-    onOffer: true,
-    bigOffer: true,
-    image: getProductImage("iPhone 15 Pro Max")
-  },
-  {
-    id: 3,
-    name: "Sony WH-1000XM5",
-    price: 349.99,
-    category: "Electronics",
-    description: "Industry-leading noise cancelling wireless headphones.",
-    discount: 15,
-    onOffer: true,
-    bigOffer: false,
-    image: getProductImage("Sony WH-1000XM5")
-  },
-  {
-    id: 4,
-    name: "iPad Air 5th Gen",
-    price: 599.99,
-    category: "Electronics",
-    description: "10.9-inch Liquid Retina display with M1 chip.",
-    discount: 0,
-    onOffer: false,
-    bigOffer: false,
-    image: getProductImage("iPad Air 5th Gen")
-  },
-  {
-    id: 5,
-    name: "Dyson V15 Vacuum",
-    price: 599.99,
-    category: "Home & Kitchen",
-    description: "Powerful cordless vacuum with laser dust detection.",
-    discount: 20,
-    onOffer: true,
-    bigOffer: true,
-    image: getProductImage("Dyson V15 Vacuum")
-  },
-  {
-    id: 6,
-    name: "Peloton Bike+",
-    price: 1871.25,
-    category: "Fitness",
-    description: "Premium indoor cycling bike with live classes.",
-    discount: 25,
-    onOffer: true,
-    bigOffer: true,
-    image: getProductImage("Peloton Bike+")
-  }
-];
+// Initialize with shared products converted to admin format
+const initialProducts = sharedProducts.map(convertToAdminFormat);
 
 export function AdminProductsPage() {
   const router = useRouter();
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sortBy, setSortBy] = useState("featured");
+  const categories = ["All", "Audio", "Wearables", "Accessories", "Gaming", "Smart Home", "Storage"];
+  
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('adminProducts');
       if (saved) {
-        return JSON.parse(saved) as Product[];
-      } else {
-        // Initialize with default products
-        localStorage.setItem('adminProducts', JSON.stringify(initialProducts));
-        return initialProducts;
+        try {
+          const parsed = JSON.parse(saved) as Product[];
+          // If saved products exist and match the count, use them; otherwise use shared products
+          if (parsed && parsed.length === sharedProducts.length) {
+            return parsed;
+          }
+        } catch (e) {
+          // If parsing fails, use shared products
+        }
       }
+      // Initialize with shared products (12 products)
+      localStorage.setItem('adminProducts', JSON.stringify(initialProducts));
+      return initialProducts;
     }
     return initialProducts;
   });
@@ -151,6 +99,30 @@ export function AdminProductsPage() {
     router.push(`/admin/products/edit/${id}`);
   };
 
+  // Filter and sort products
+  const filteredAndSortedProducts = useMemo(() => {
+    // First filter by category
+    let filtered = selectedCategory === "All"
+      ? products
+      : products.filter(p => p.category === selectedCategory);
+
+    // Then sort based on sortBy
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case "price-low":
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case "price-high":
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case "featured":
+      default:
+        // Keep original order
+        break;
+    }
+    return sorted;
+  }, [products, selectedCategory, sortBy]);
+
   return (
     <AdminLayout>
       <div>
@@ -168,8 +140,47 @@ export function AdminProductsPage() {
           </button>
         </div>
 
+        {/* Filter and Sort Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          {/* Category Pills */}
+          <div className="flex gap-2 flex-wrap">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-lg transition-all ${
+                  selectedCategory === cat
+                    ? "bg-cyan-500 text-white"
+                    : "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="appearance-none bg-slate-700 border border-slate-600 text-white px-4 py-2 pr-10 rounded-lg hover:border-cyan-500 transition-all cursor-pointer"
+            >
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Products Count */}
+        <p className="text-slate-400 mb-6">
+          Showing <span className="font-semibold text-white">{filteredAndSortedProducts.length}</span> products
+        </p>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product, index) => (
+          {filteredAndSortedProducts.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}

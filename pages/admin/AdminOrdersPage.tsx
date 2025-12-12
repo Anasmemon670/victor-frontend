@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { Eye, X } from "lucide-react";
+import { orders as sharedOrders } from "@/data/orders";
 
 interface Order {
   id: string;
@@ -16,57 +17,55 @@ interface Order {
   products: { name: string; quantity: number; price: number }[];
 }
 
-const initialOrders: Order[] = [
-  {
-    id: "1",
-    orderNumber: "ORD-001",
-    customerName: "John Doe",
-    customerEmail: "john@example.com",
-    orderDate: "2025-12-01",
-    totalAmount: 2599.98,
-    status: "pending",
-    products: [
-      { name: "MacBook Pro M3 16\"", quantity: 1, price: 2249.99 },
-      { name: "Sony WH-1000XM5", quantity: 1, price: 349.99 }
-    ]
-  },
-  {
-    id: "2",
-    orderNumber: "ORD-002",
-    customerName: "Jane Smith",
-    customerEmail: "jane@example.com",
-    orderDate: "2025-12-02",
-    totalAmount: 1199.99,
-    status: "processed",
-    products: [
-      { name: "iPhone 15 Pro Max", quantity: 1, price: 1199.99 }
-    ]
-  },
-  {
-    id: "3",
-    orderNumber: "ORD-003",
-    customerName: "Bob Johnson",
-    customerEmail: "bob@example.com",
-    orderDate: "2025-12-03",
-    totalAmount: 599.99,
-    status: "shipped",
-    products: [
-      { name: "iPad Air 5th Gen", quantity: 1, price: 599.99 }
-    ]
-  },
-  {
-    id: "4",
-    orderNumber: "ORD-004",
-    customerName: "Alice Williams",
-    customerEmail: "alice@example.com",
-    orderDate: "2025-12-04",
-    totalAmount: 1871.25,
-    status: "delivered",
-    products: [
-      { name: "Peloton Bike+", quantity: 1, price: 1871.25 }
-    ]
-  }
-];
+// Convert shared orders to admin format
+const convertToAdminFormat = (order: typeof sharedOrders[0], index: number): Order => {
+  // Extract quantity from item name like "Product Name (x1)" or default to 1
+  const parseItem = (item: { name: string; price: string }) => {
+    const quantityMatch = item.name.match(/\(x(\d+)\)/);
+    const quantity = quantityMatch ? parseInt(quantityMatch[1]) : 1;
+    const name = item.name.replace(/\s*\(x\d+\)/, ""); // Remove (x1) from name
+    const price = parseFloat(item.price.replace("$", "").replace(/,/g, ""));
+    return { name, quantity, price };
+  };
+
+  // Convert date from "12/4/2025" to "2025-12-04"
+  const convertDate = (dateStr: string) => {
+    const [month, day, year] = dateStr.split("/");
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  };
+
+  // Convert status: "completed" -> "delivered", "shipped" -> "shipped"
+  const convertStatus = (status: string) => {
+    if (status === "completed") return "delivered";
+    if (status === "shipped") return "shipped";
+    return "pending";
+  };
+
+  // Generate order number from id
+  const orderNumber = order.id.replace("#", "ORD-");
+
+  // Calculate total from items
+  const totalAmount = order.items.reduce((sum, item) => {
+    const price = parseFloat(item.price.replace("$", "").replace(/,/g, ""));
+    const quantityMatch = item.name.match(/\(x(\d+)\)/);
+    const quantity = quantityMatch ? parseInt(quantityMatch[1]) : 1;
+    return sum + (price * quantity);
+  }, 0);
+
+  return {
+    id: (index + 1).toString(),
+    orderNumber,
+    customerName: "Customer", // Default customer name
+    customerEmail: `customer${index + 1}@example.com`, // Default email
+    orderDate: convertDate(order.date),
+    totalAmount,
+    status: convertStatus(order.status),
+    products: order.items.map(parseItem)
+  };
+};
+
+// Initialize with shared orders converted to admin format
+const initialOrders: Order[] = sharedOrders.map(convertToAdminFormat);
 
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState(initialOrders);

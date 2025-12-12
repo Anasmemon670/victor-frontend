@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Calendar, Clock, ArrowRight } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
-import { blogPosts, featuredPost } from "../components/data/blogPosts";
+import { blogPosts, featuredPost } from "@/data/blogPosts";
 import { useRouter } from "next/navigation";
 
 const categories = ["All", "Product Updates", "Tutorials", "Industry Insights", "Company News"];
