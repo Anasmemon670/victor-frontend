@@ -41,38 +41,32 @@ export function Header() {
 
   const totalCartItems = getTotalItems();
 
-  // Filter and sort products based on search query - show all products sorted by relevance
+  // Filter products based on search query - only show products that match by title/name
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     
-    // Get all products and calculate relevance score
-    const productsWithScore = products.map(product => {
+    // Filter products where name/title contains the search query
+    const matchingProducts = products.filter(product => {
       const name = product.name.toLowerCase();
-      const description = product.description.toLowerCase();
-      const category = product.category.toLowerCase();
-      
-      let score = 0;
-      
-      // Exact name match gets highest score
-      if (name === query) score += 100;
-      // Name starts with query
-      else if (name.startsWith(query)) score += 50;
-      // Name contains query
-      else if (name.includes(query)) score += 30;
-      // Description contains query
-      if (description.includes(query)) score += 10;
-      // Category contains query
-      if (category.includes(query)) score += 5;
-      
-      return { product, score };
+      // Check if product name/title contains the search query
+      return name.includes(query);
     });
     
-    // Sort by relevance score (highest first) - even products with 0 score will show
-    productsWithScore.sort((a, b) => b.score - a.score);
+    // Sort by relevance - products that start with query come first
+    matchingProducts.sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      
+      // Products starting with query get priority
+      if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+      if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
+      
+      // Then sort alphabetically
+      return aName.localeCompare(bName);
+    });
     
-    // Return ALL products sorted by relevance (matching products first, then others)
-    return productsWithScore.map(item => item.product);
+    return matchingProducts;
   }, [searchQuery]);
 
   // Close search dropdown when clicking outside
@@ -261,8 +255,16 @@ export function Header() {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center gap-3 text-white hover:text-cyan-400 transition-colors group"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-cyan-500/50 transition-all">
-                      {user.name[0].toUpperCase()}
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-cyan-500/50 transition-all overflow-hidden">
+                      {user.profilePicture ? (
+                        <img
+                          src={user.profilePicture}
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span>{user.name[0].toUpperCase()}</span>
+                      )}
                     </div>
                     <span className="font-medium text-sm hidden xl:block">{user.name}</span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -456,11 +458,19 @@ export function Header() {
                   <>
                     <div className="px-3 py-2 border-b border-slate-700 border-t mt-2">
                       <div className="flex items-center gap-2 mb-2">
-                        <img
-                          src={user.profilePicture || `https://ui-avatars.com/api/?name=${user.name}&background=06b6d4&color=fff`}
-                          alt={user.name}
-                          className="w-8 h-8 rounded-full border-2 border-cyan-500"
-                        />
+                        <div className="w-8 h-8 rounded-full border-2 border-cyan-500 overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                          {user.profilePicture ? (
+                            <img
+                              src={user.profilePicture}
+                              alt={user.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white text-xs font-bold">
+                              {user.name[0].toUpperCase()}
+                            </span>
+                          )}
+                        </div>
                         <div>
                           <p className="text-white text-sm">{user.name}</p>
                           <p className="text-slate-400 text-xs">{user.email}</p>

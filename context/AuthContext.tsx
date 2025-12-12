@@ -17,6 +17,7 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   isAdmin: () => boolean;
+  updateUser: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -109,8 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return user?.isAdmin === true;
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isLoading, isAdmin, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
@@ -128,6 +134,7 @@ export function useAuth() {
         logout: () => {},
         isLoading: false,
         isAdmin: () => false,
+        updateUser: () => {},
       };
     }
     throw new Error("useAuth must be used within an AuthProvider");
