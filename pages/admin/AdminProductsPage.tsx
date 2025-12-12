@@ -1,10 +1,10 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Edit, Trash2, Plus, ChevronDown } from "lucide-react";
+import { Edit, Trash2, Plus, ChevronDown, X, AlertTriangle } from "lucide-react";
 import { products as sharedProducts } from "@/data/products";
 
 // Product type definition
@@ -79,6 +79,7 @@ export function AdminProductsPage() {
     return initialProducts;
   });
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Save to localStorage whenever products change
   useEffect(() => {
@@ -87,11 +88,23 @@ export function AdminProductsPage() {
     }
   }, [products]);
 
-  const handleDelete = (id: number) => {
-    const updatedProducts = products.filter((p: Product) => p.id !== id);
-    setProducts(updatedProducts);
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteConfirm(product.id);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (productToDelete) {
+      const updatedProducts = products.filter((p: Product) => p.id !== productToDelete.id);
+      setProducts(updatedProducts);
+      setDeleteConfirm(null);
+      setProductToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
     setDeleteConfirm(null);
-    alert(`Product deleted successfully!`);
+    setProductToDelete(null);
   };
 
   const handleEdit = (id: number) => {
@@ -224,35 +237,73 @@ export function AdminProductsPage() {
                     <Edit className="w-4 h-4" />
                     Edit
                   </button>
-                  {deleteConfirm === product.id ? (
-                    <>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all text-sm"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(null)}
-                        className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-all text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteConfirm(product.id)}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDeleteClick(product)}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
                 </div>
               </div>
             </motion.div>
           ))}
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {deleteConfirm && productToDelete && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700 shadow-2xl"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                      <AlertTriangle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <h2 className="text-white text-xl font-semibold">Delete Product</h2>
+                  </div>
+                  <button
+                    onClick={handleDeleteCancel}
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <p className="text-slate-300 mb-2">
+                  Are you sure you want to delete this product?
+                </p>
+                <p className="text-white font-semibold mb-6">
+                  "{productToDelete.name}"
+                </p>
+                <p className="text-slate-400 text-sm mb-6">
+                  This action cannot be undone.
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDeleteCancel}
+                    className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteConfirm}
+                    className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                    Delete Product
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </AdminLayout>
   );
