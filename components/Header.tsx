@@ -256,14 +256,15 @@ export function Header() {
                     className="flex items-center gap-3 text-white hover:text-cyan-400 transition-colors group"
                   >
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-cyan-500/50 transition-all overflow-hidden">
-                      {user.profilePicture ? (
+                      {user.profilePicture && user.profilePicture.trim() !== '' && user.profilePicture.startsWith('data:image') ? (
                         <img
+                          key={`${user.id}-${user.profilePicture.substring(0, 50)}`} // Force re-render when image changes
                           src={user.profilePicture}
                           alt={user.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span>{user.name[0].toUpperCase()}</span>
+                        <span>{user.name[0]?.toUpperCase() || 'U'}</span>
                       )}
                     </div>
                     <span className="font-medium text-sm hidden xl:block">{user.name}</span>
@@ -459,15 +460,16 @@ export function Header() {
                     <div className="px-3 py-2 border-b border-slate-700 border-t mt-2">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="w-8 h-8 rounded-full border-2 border-cyan-500 overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                          {user.profilePicture ? (
+                          {user.profilePicture && user.profilePicture.trim() !== '' && user.profilePicture.startsWith('data:image') ? (
                             <img
+                              key={`${user.id}-${user.profilePicture.substring(0, 50)}`} // Force re-render when image changes
                               src={user.profilePicture}
                               alt={user.name}
                               className="w-full h-full object-cover"
                             />
                           ) : (
                             <span className="text-white text-xs font-bold">
-                              {user.name[0].toUpperCase()}
+                              {user.name[0]?.toUpperCase() || 'U'}
                             </span>
                           )}
                         </div>

@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { motion } from "motion/react";
-import { User, Camera, Save, ArrowLeft } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { User, Camera, Save, ArrowLeft, X, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -14,6 +14,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [profilePicture, setProfilePicture] = useState("");
   const [preview, setPreview] = useState("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSaveClick = () => {
     if (!name.trim()) {
       alert("Name is required");
       return;
@@ -66,15 +67,51 @@ export default function ProfilePage() {
       return;
     }
 
-    if (updateUser) {
-      updateUser({
-        ...user!,
-        name: name.trim(),
-        email: email.trim(),
-        profilePicture: profilePicture || user?.profilePicture
-      });
-      alert("Profile updated successfully!");
+    // Check if there are any changes
+    const hasNameChange = name.trim() !== (user?.name || '');
+    const hasEmailChange = email.trim() !== (user?.email || '');
+    const hasImageChange = (preview || profilePicture) !== (user?.profilePicture || '');
+    
+    if (!hasNameChange && !hasEmailChange && !hasImageChange) {
+      alert("No changes to save");
+      return;
     }
+
+    // Show confirmation modal
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = () => {
+    if (!updateUser || !user) {
+      alert("Error: Cannot update profile");
+      return;
+    }
+
+    // Get the profile picture - use preview if available, otherwise use profilePicture state
+    const finalProfilePicture = preview || profilePicture;
+    
+    // Create updated user object with all required fields
+    const updatedUser: typeof user = {
+      id: user.id,
+      name: name.trim(),
+      email: email.trim(),
+      profilePicture: finalProfilePicture || user.profilePicture || '',
+      isAdmin: user.isAdmin || false
+    };
+    
+    // Update user in context
+    updateUser(updatedUser);
+    
+    // Also update local state
+    setProfilePicture(finalProfilePicture || '');
+    setPreview(finalProfilePicture || '');
+    
+    // Close modal
+    setShowConfirmModal(false);
+  };
+
+  const handleCancelSave = () => {
+    setShowConfirmModal(false);
   };
 
   if (!user) {
@@ -167,7 +204,7 @@ export default function ProfilePage() {
 
               {/* Save Button */}
               <button
-                onClick={handleSave}
+                onClick={handleSaveClick}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/50"
               >
                 <Save className="w-5 h-5" />
@@ -177,6 +214,55 @@ export default function ProfilePage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-cyan-500/20 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <h2 className="text-white text-xl font-semibold">Confirm Changes</h2>
+                </div>
+                <button
+                  onClick={handleCancelSave}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-slate-300 mb-6">
+                Are you sure you want to update your profile? This will change your profile picture and/or name.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelSave}
+                  className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmSave}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  Yes, Update
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
