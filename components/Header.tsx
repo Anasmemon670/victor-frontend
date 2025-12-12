@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Search, ChevronDown, Menu, X, LogOut, User as UserIcon, HelpCircle, ShoppingCart, MessageSquare, Mail, Package } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
+import { products } from "@/data/products";
 import logoImage from "../assets/77ac9b30465e2a638fe36d43d6692e10b6bf92e1.png";
 
 const pages = [
@@ -26,6 +27,8 @@ export function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Mock messages
   const [messages, setMessages] = useState([
@@ -37,6 +40,52 @@ export function Header() {
   const unreadCount = messages.filter(m => m.unread).length;
 
   const totalCartItems = getTotalItems();
+
+  // Filter and sort products based on search query - show all products sorted by relevance
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const query = searchQuery.toLowerCase();
+    
+    // Get all products and calculate relevance score
+    const productsWithScore = products.map(product => {
+      const name = product.name.toLowerCase();
+      const description = product.description.toLowerCase();
+      const category = product.category.toLowerCase();
+      
+      let score = 0;
+      
+      // Exact name match gets highest score
+      if (name === query) score += 100;
+      // Name starts with query
+      else if (name.startsWith(query)) score += 50;
+      // Name contains query
+      else if (name.includes(query)) score += 30;
+      // Description contains query
+      if (description.includes(query)) score += 10;
+      // Category contains query
+      if (category.includes(query)) score += 5;
+      
+      return { product, score };
+    });
+    
+    // Sort by relevance score (highest first) - even products with 0 score will show
+    productsWithScore.sort((a, b) => b.score - a.score);
+    
+    // Return ALL products sorted by relevance (matching products first, then others)
+    return productsWithScore.map(item => item.product);
+  }, [searchQuery]);
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -96,15 +145,58 @@ export function Header() {
 
             {/* Search Bar - Hidden on mobile */}
             <div className="hidden md:flex flex-1 max-w-md">
-              <div className="relative w-full">
+              <div className="relative w-full" ref={searchRef}>
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && filteredProducts.length > 0) {
+                      router.push(`/product/${filteredProducts[0].id}`);
+                      setSearchQuery("");
+                      setIsSearchFocused(false);
+                    }
+                  }}
                   className="w-full px-4 py-2 pl-10 bg-slate-800 text-white rounded-full border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                
+                {/* Search Results Dropdown */}
+                <AnimatePresence>
+                  {isSearchFocused && filteredProducts.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full mt-2 w-full bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50 max-h-[600px] overflow-y-auto"
+                    >
+                      {filteredProducts.map((product) => (
+                        <Link
+                          key={product.id}
+                          href={`/product/${product.id}`}
+                          onClick={() => {
+                            setSearchQuery("");
+                            setIsSearchFocused(false);
+                          }}
+                          className="flex items-center gap-3 p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                        >
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-12 h-12 object-cover rounded-lg"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{product.name}</p>
+                            <p className="text-slate-400 text-xs truncate">{product.category}</p>
+                            <p className="text-cyan-400 text-sm font-semibold">${product.price}</p>
+                          </div>
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -258,15 +350,58 @@ export function Header() {
 
         {/* Mobile Search Bar */}
         <div className="md:hidden mt-3">
-          <div className="relative w-full">
+          <div className="relative w-full" ref={searchRef}>
             <input
               type="text"
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && filteredProducts.length > 0) {
+                  router.push(`/product/${filteredProducts[0].id}`);
+                  setSearchQuery("");
+                  setIsSearchFocused(false);
+                }
+              }}
               className="w-full px-4 py-2 pl-10 bg-slate-800 text-white rounded-full border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+            
+            {/* Mobile Search Results Dropdown */}
+            <AnimatePresence>
+              {isSearchFocused && filteredProducts.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full mt-2 w-full bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50 max-h-[600px] overflow-y-auto"
+                >
+                  {filteredProducts.map((product) => (
+                    <Link
+                      key={product.id}
+                      href={`/product/${product.id}`}
+                      onClick={() => {
+                        setSearchQuery("");
+                        setIsSearchFocused(false);
+                      }}
+                      className="flex items-center gap-3 p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                    >
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-12 h-12 object-cover rounded-lg"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{product.name}</p>
+                        <p className="text-slate-400 text-xs truncate">{product.category}</p>
+                        <p className="text-cyan-400 text-sm font-semibold">${product.price}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 

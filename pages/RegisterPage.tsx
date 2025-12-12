@@ -96,18 +96,6 @@ export function RegisterPage() {
           className="bg-slate-800/50 backdrop-blur-xl border border-slate-700 rounded-2xl p-8 shadow-2xl"
         >
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Error Message */}
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg flex items-center gap-2"
-              >
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm">{error}</span>
-              </motion.div>
-            )}
-
             {/* Name Field */}
             <div>
               <label className="text-slate-300 text-sm mb-2 block">Full Name</label>
@@ -202,6 +190,18 @@ export function RegisterPage() {
                 </Link>
               </label>
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg flex items-center gap-2"
+              >
+                <AlertCircle className="w-5 h-5" />
+                <span className="text-sm">{error}</span>
+              </motion.div>
+            )}
 
             {/* Register Button */}
             <button
