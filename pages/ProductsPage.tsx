@@ -56,7 +56,7 @@ export function ProductsPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Page Header */}
-      <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 py-16">
+      <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 py-12 sm:py-16">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -64,23 +64,23 @@ export function ProductsPage() {
             transition={{ duration: 0.6 }}
           >
             <div className="flex items-center gap-2 text-cyan-400 mb-3">
-              <span className="text-sm">★ Premium Products</span>
+              <span className="text-xs sm:text-sm">★ Premium Products</span>
             </div>
-            <h1 className="text-white text-4xl md:text-5xl mb-4">Our Products</h1>
-            <p className="text-slate-300 text-lg max-w-2xl">
+            <h1 className="text-white text-3xl sm:text-4xl md:text-5xl mb-3 sm:mb-4">Our Products</h1>
+            <p className="text-slate-300 text-base sm:text-lg max-w-2xl">
               Discover our complete range of premium technology products designed for your daily needs.
             </p>
           </motion.div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-8 sm:py-12">
         {/* Filter and Sort Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap w-full md:w-auto">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg hover:border-cyan-500 transition-all"
+              className="flex items-center gap-2 bg-white border border-slate-200 px-3 sm:px-4 py-2 rounded-lg hover:border-cyan-500 transition-all text-xs sm:text-sm"
             >
               <Filter className="w-4 h-4" />
               Filters
@@ -92,7 +92,7 @@ export function ProductsPage() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-4 py-2 rounded-lg transition-all ${selectedCategory === cat
+                  className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-xs sm:text-sm ${selectedCategory === cat
                     ? "bg-cyan-500 text-white"
                     : "bg-white text-slate-700 hover:bg-slate-100"
                     }`}
@@ -104,11 +104,11 @@ export function ProductsPage() {
           </div>
 
           {/* Sort Dropdown */}
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 px-4 py-2 pr-10 rounded-lg hover:border-cyan-500 transition-all cursor-pointer"
+              className="appearance-none bg-white border border-slate-200 px-3 sm:px-4 py-2 pr-10 rounded-lg hover:border-cyan-500 transition-all cursor-pointer w-full md:w-auto text-xs sm:text-sm"
             >
               <option value="featured">Featured</option>
               <option value="price-low">Price: Low to High</option>
@@ -144,7 +144,7 @@ export function ProductsPage() {
 
               {/* Product Image */}
               <div
-                className="h-56 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center group-hover:from-cyan-50 group-hover:to-blue-50 transition-all relative overflow-hidden"
+                className="h-48 sm:h-56 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center group-hover:from-cyan-50 group-hover:to-blue-50 transition-all relative overflow-hidden"
               >
                 <img
                   src={product.image}

@@ -42,8 +42,8 @@ export function Hero() {
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      <div className="container mx-auto px-4 py-16 md:py-24 lg:py-32 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="container mx-auto px-4 py-12 sm:py-16 md:py-24 lg:py-32 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
           {/* Left Side - Content */}
           <div>
             {/* Badge */}
@@ -51,10 +51,10 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="flex items-center gap-2 text-cyan-400 mb-6"
+              className="flex items-center gap-2 text-cyan-400 mb-4 sm:mb-6"
             >
-              <span className="text-sm">★</span>
-              <span className="text-sm">Making the future more present</span>
+              <span className="text-xs sm:text-sm">★</span>
+              <span className="text-xs sm:text-sm">Making the future more present</span>
             </motion.div>
 
             {/* Main Heading */}
@@ -62,7 +62,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-white text-4xl md:text-5xl lg:text-6xl mb-6 leading-tight"
+              className="text-white text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-4 sm:mb-6 leading-tight"
             >
               Technology <span className="text-cyan-400">Solutions</span> & Services
             </motion.h1>
@@ -72,7 +72,7 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-slate-300 text-lg md:text-xl mb-8 max-w-xl"
+              className="text-slate-300 text-base sm:text-lg md:text-xl mb-6 sm:mb-8 max-w-xl"
             >
               Discover products and services for your daily needs. Quality solutions at competitive prices.
             </motion.p>
@@ -82,18 +82,18 @@ export function Hero() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
-              className="flex flex-col sm:flex-row gap-4"
+              className="flex flex-col sm:flex-row gap-3 sm:gap-4"
             >
               <button
                 onClick={() => router.push('/products')}
-                className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/50"
+                className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 sm:px-8 py-3 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/50 text-sm sm:text-base"
               >
                 Explore Products
                 <span>→</span>
               </button>
               <button
                 onClick={() => router.push('/projects')}
-                className="bg-transparent border-2 border-white hover:bg-white hover:text-slate-900 text-white px-8 py-3 rounded-lg transition-all transform hover:scale-105"
+                className="bg-transparent border-2 border-white hover:bg-white hover:text-slate-900 text-white px-6 sm:px-8 py-3 rounded-lg transition-all transform hover:scale-105 text-sm sm:text-base"
               >
                 View Projects
               </button>

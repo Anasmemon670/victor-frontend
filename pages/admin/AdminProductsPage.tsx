@@ -32,10 +32,10 @@ const convertToAdminFormat = (product: typeof sharedProducts[0]): Product => {
       discountPercent = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
     }
   }
-  
+
   const hasDiscount = discountPercent > 0;
   const isBigOffer = discountPercent >= 25; // Consider 25%+ as big offer
-  
+
   return {
     id: product.id,
     name: product.name,
@@ -57,7 +57,7 @@ export function AdminProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
   const categories = ["All", "Audio", "Wearables", "Accessories", "Gaming", "Smart Home", "Storage"];
-  
+
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('adminProducts');
@@ -161,11 +161,10 @@ export function AdminProductsPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-lg transition-all ${
-                  selectedCategory === cat
+                className={`px-4 py-2 rounded-lg transition-all ${selectedCategory === cat
                     ? "bg-cyan-500 text-white"
                     : "bg-slate-700 text-slate-300 hover:bg-slate-600"
-                }`}
+                  }`}
               >
                 {cat}
               </button>

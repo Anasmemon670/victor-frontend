@@ -32,28 +32,28 @@ export function BigOffers() {
   }, []);
 
   return (
-    <section id="big-offers" className="py-16 md:py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <section id="big-offers" className="py-12 sm:py-16 md:py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isVisible ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center mb-8 sm:mb-12"
         >
           <div className="flex items-center justify-center gap-2 text-cyan-400 mb-3">
-            <span className="text-sm">★ Exclusive Deals</span>
+            <span className="text-xs sm:text-sm">★ Exclusive Deals</span>
           </div>
-          <h2 className="text-white text-3xl md:text-4xl lg:text-5xl mb-4">
+          <h2 className="text-white text-2xl sm:text-3xl md:text-4xl lg:text-5xl mb-3 sm:mb-4">
             Big Offers
           </h2>
-          <p className="text-slate-300 text-lg max-w-2xl mx-auto">
+          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
             Discover our most exclusive deals and products at competitive prices. Quality and value that you can trust.
           </p>
         </motion.div>
 
         {/* Offer Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-10">
           {products.map((product, index) => (
             <motion.div
               key={product.id}
@@ -65,7 +65,7 @@ export function BigOffers() {
               {/* Product Image with Discount Badge */}
               <div
                 onClick={() => router.push(`/product/${product.id}`)}
-                className="relative h-56 overflow-hidden cursor-pointer"
+                className="relative h-48 sm:h-56 overflow-hidden cursor-pointer"
               >
                 <ImageWithFallback
                   src={product.imageQuery}

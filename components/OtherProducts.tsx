@@ -50,29 +50,29 @@ export function OtherProducts() {
   };
 
   return (
-    <section id="other-products" className="py-16 md:py-24 bg-slate-50">
+    <section id="other-products" className="py-12 sm:py-16 md:py-24 bg-slate-50">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isVisible ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4"
+          className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 sm:mb-12 gap-4"
         >
           <div>
             <div className="flex items-center gap-2 text-cyan-600 mb-2">
-              <span className="text-sm">★ Premium Collection</span>
+              <span className="text-xs sm:text-sm">★ Premium Collection</span>
             </div>
-            <h2 className="text-slate-900 text-3xl md:text-4xl mb-2">
+            <h2 className="text-slate-900 text-2xl sm:text-3xl md:text-4xl mb-2">
               Other Products
             </h2>
-            <p className="text-slate-600 max-w-xl">
+            <p className="text-slate-600 text-sm sm:text-base max-w-xl">
               Discover our complete range of products designed for your daily needs.
             </p>
           </div>
           <button
             onClick={() => router.push("/products")}
-            className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-lg transition-all transform hover:scale-105"
+            className="bg-slate-900 hover:bg-slate-800 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all transform hover:scale-105 text-sm sm:text-base"
           >
             Explore All
           </button>
@@ -106,7 +106,7 @@ export function OtherProducts() {
                 className="bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500"
               >
                 {/* Image */}
-                <div className="h-56 overflow-hidden">
+                <div className="h-48 sm:h-56 overflow-hidden">
                   <ImageWithFallback
                     src={product.image}
                     alt={product.name}

@@ -92,13 +92,13 @@ export function AdminServicesPage() {
       // Update existing service
       setServices(services.map(s =>
         s.id === editingService.id
-          ? { 
-              ...s, 
-              ...formData,
-              features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
-              iconName: formData.iconName,
-              IconComponent: selectedIcon
-            }
+          ? {
+            ...s,
+            ...formData,
+            features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
+            iconName: formData.iconName,
+            IconComponent: selectedIcon
+          }
           : s
       ));
       alert("Service updated successfully!");
@@ -142,58 +142,58 @@ export function AdminServicesPage() {
           {services.map((service, index) => {
             const Icon = service.IconComponent || iconMap[service.iconName || "Cpu"] || Cpu;
             return (
-            <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <div className="flex items-center gap-4 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-white text-xl">{service.title}</h3>
-              </div>
-              <p className="text-slate-400 mb-4">{service.description}</p>
-              
-              {/* Features */}
-              {service.features && service.features.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-slate-300 text-sm mb-2">Features:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {service.features.map((feature, i) => (
-                      <span key={i} className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
-                        {feature}
-                      </span>
-                    ))}
+              <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-6 h-6 text-white" />
                   </div>
+                  <h3 className="text-white text-xl">{service.title}</h3>
                 </div>
-              )}
-              
-              {(service.price || service.duration) && (
-                <div className="flex items-center gap-4 text-sm text-slate-500 mb-4">
-                  {service.price && <span className="text-cyan-400">{service.price}</span>}
-                  {service.price && service.duration && <span>•</span>}
-                  {service.duration && <span>Duration: {service.duration}</span>}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEdit(service)}
-                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  Edit
-                </button>
-                {deleteConfirm === service.id ? (
-                  <>
-                    <button onClick={() => setServices(services.filter(s => s.id !== service.id))} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all">Confirm</button>
-                    <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-all">Cancel</button>
-                  </>
-                ) : (
-                  <button onClick={() => setDeleteConfirm(service.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2">
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
+                <p className="text-slate-400 mb-4">{service.description}</p>
+
+                {/* Features */}
+                {service.features && service.features.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-slate-300 text-sm mb-2">Features:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {service.features.map((feature, i) => (
+                        <span key={i} className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </div>
-            </motion.div>
-          );
+
+                {(service.price || service.duration) && (
+                  <div className="flex items-center gap-4 text-sm text-slate-500 mb-4">
+                    {service.price && <span className="text-cyan-400">{service.price}</span>}
+                    {service.price && service.duration && <span>•</span>}
+                    {service.duration && <span>Duration: {service.duration}</span>}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(service)}
+                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                  {deleteConfirm === service.id ? (
+                    <>
+                      <button onClick={() => setServices(services.filter(s => s.id !== service.id))} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all">Confirm</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-all">Cancel</button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDeleteConfirm(service.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            );
           })}
         </div>
 
@@ -240,7 +240,7 @@ export function AdminServicesPage() {
                   onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                   className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
-                
+
                 {/* Icon Selection */}
                 <div className="space-y-2">
                   <label className="text-white text-sm font-medium">Icon</label>
@@ -250,18 +250,15 @@ export function AdminServicesPage() {
                         key={name}
                         type="button"
                         onClick={() => setFormData({ ...formData, iconName: name })}
-                        className={`p-3 rounded-lg border-2 transition-all ${
-                          formData.iconName === name
+                        className={`p-3 rounded-lg border-2 transition-all ${formData.iconName === name
                             ? "border-cyan-500 bg-cyan-500/20"
                             : "border-slate-600 bg-slate-700 hover:border-slate-500"
-                        }`}
+                          }`}
                       >
-                        <IconComponent className={`w-6 h-6 mx-auto ${
-                          formData.iconName === name ? "text-cyan-400" : "text-slate-400"
-                        }`} />
-                        <p className={`text-xs mt-1 ${
-                          formData.iconName === name ? "text-cyan-400" : "text-slate-500"
-                        }`}>{name}</p>
+                        <IconComponent className={`w-6 h-6 mx-auto ${formData.iconName === name ? "text-cyan-400" : "text-slate-400"
+                          }`} />
+                        <p className={`text-xs mt-1 ${formData.iconName === name ? "text-cyan-400" : "text-slate-500"
+                          }`}>{name}</p>
                       </button>
                     ))}
                   </div>

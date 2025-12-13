@@ -137,8 +137,8 @@ export function AdminContactMessagesPage() {
               setSelectedMessage(null);
             }}
             className={`px-6 py-3 rounded-lg transition-all ${activeTab === "active"
-                ? "bg-cyan-500 text-white"
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              ? "bg-cyan-500 text-white"
+              : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
           >
             Active Messages ({messages.length})
@@ -149,8 +149,8 @@ export function AdminContactMessagesPage() {
               setSelectedMessage(null);
             }}
             className={`px-6 py-3 rounded-lg transition-all ${activeTab === "archived"
-                ? "bg-cyan-500 text-white"
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              ? "bg-cyan-500 text-white"
+              : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
           >
             Archived ({archivedMessages.length})

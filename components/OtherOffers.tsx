@@ -46,29 +46,29 @@ export function OtherOffers() {
   };
 
   return (
-    <section id="other-offers" className="py-16 md:py-24 bg-white">
+    <section id="other-offers" className="py-12 sm:py-16 md:py-24 bg-white">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isVisible ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4"
+          className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 sm:mb-12 gap-4"
         >
           <div>
             <div className="flex items-center gap-2 text-cyan-600 mb-2">
-              <span className="text-sm">★ Special Deals</span>
+              <span className="text-xs sm:text-sm">★ Special Deals</span>
             </div>
-            <h2 className="text-slate-900 text-3xl md:text-4xl mb-2">
+            <h2 className="text-slate-900 text-2xl sm:text-3xl md:text-4xl mb-2">
               Other Offers
             </h2>
-            <p className="text-slate-600">
+            <p className="text-slate-600 text-sm sm:text-base">
               Explore additional products with special pricing. Quality products at competitive rates.
             </p>
           </div>
           <button
             onClick={() => router.push('/offers')}
-            className="text-cyan-600 hover:text-cyan-700 flex items-center gap-2 transition-colors"
+            className="text-cyan-600 hover:text-cyan-700 flex items-center gap-2 transition-colors text-sm sm:text-base"
           >
             View All Offers
             <span>→</span>
@@ -108,7 +108,7 @@ export function OtherOffers() {
                 >
                   <div className="bg-slate-50 rounded-xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500">
                     {/* Image */}
-                    <div className="h-48 overflow-hidden">
+                    <div className="h-40 sm:h-48 overflow-hidden">
                       <ImageWithFallback
                         src={offer.image}
                         alt={offer.title}
@@ -117,22 +117,22 @@ export function OtherOffers() {
                     </div>
 
                     {/* Content */}
-                    <div className="p-6">
-                      <span className="bg-cyan-500 text-white text-sm px-3 py-1 rounded-full inline-block mb-3">
+                    <div className="p-4 sm:p-6">
+                      <span className="bg-cyan-500 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-1 rounded-full inline-block mb-2 sm:mb-3">
                         {offer.discount}
                       </span>
-                      <h3 className="text-slate-900 text-xl mb-2">{offer.title}</h3>
-                      <p className="text-slate-600 text-sm mb-4">
+                      <h3 className="text-slate-900 text-lg sm:text-xl mb-2">{offer.title}</h3>
+                      <p className="text-slate-600 text-xs sm:text-sm mb-3 sm:mb-4">
                         Quality products at competitive rates
                       </p>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-900 text-xl">{offer.price}</span>
+                        <span className="text-slate-900 text-lg sm:text-xl">{offer.price}</span>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/product/${offer.id}`);
                           }}
-                          className="text-cyan-600 hover:text-cyan-700 transition-colors"
+                          className="text-cyan-600 hover:text-cyan-700 transition-colors text-xs sm:text-sm"
                         >
                           Learn More →
                         </button>

@@ -45,27 +45,27 @@ export function Header() {
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase().trim();
-    
+
     // Filter products where name/title contains the search query
     const matchingProducts = products.filter(product => {
       const name = product.name.toLowerCase();
       // Check if product name/title contains the search query
       return name.includes(query);
     });
-    
+
     // Sort by relevance - products that start with query come first
     matchingProducts.sort((a, b) => {
       const aName = a.name.toLowerCase();
       const bName = b.name.toLowerCase();
-      
+
       // Products starting with query get priority
       if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
       if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
-      
+
       // Then sort alphabetically
       return aName.localeCompare(bName);
     });
-    
+
     return matchingProducts;
   }, [searchQuery]);
 
@@ -97,8 +97,8 @@ export function Header() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6 flex-1">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-4 flex-shrink-0">
-              <img src={logoImage.src} alt="Vytrion Technologies" className="h-8 md:h-10" />
+            <Link href="/" className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              <img src={logoImage.src} alt="Vytrion Technologies" className="h-7 sm:h-8 md:h-10" />
             </Link>
 
             {/* Categories Dropdown - Moved to Left of Search */}
@@ -156,7 +156,7 @@ export function Header() {
                   className="w-full px-4 py-2 pl-10 bg-slate-800 text-white rounded-full border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                
+
                 {/* Search Results Dropdown */}
                 <AnimatePresence>
                   {isSearchFocused && filteredProducts.length > 0 && (
@@ -267,7 +267,7 @@ export function Header() {
                         <span>{user.name[0]?.toUpperCase() || 'U'}</span>
                       )}
                     </div>
-                    <span className="font-medium text-sm hidden xl:block">{user.name}</span>
+                    <span className="font-medium text-xs sm:text-sm hidden xl:block max-w-[100px] xl:max-w-none truncate">{user.name}</span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -370,7 +370,7 @@ export function Header() {
               className="w-full px-4 py-2 pl-10 bg-slate-800 text-white rounded-full border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-            
+
             {/* Mobile Search Results Dropdown */}
             <AnimatePresence>
               {isSearchFocused && filteredProducts.length > 0 && (

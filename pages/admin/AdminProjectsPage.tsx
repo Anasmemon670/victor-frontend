@@ -106,15 +106,15 @@ export function AdminProjectsPage() {
 
     if (editingProject) {
       // Update existing project
-      setProjects(projects.map(p => 
-        p.id === editingProject.id 
-          ? { 
-              ...p, 
-              ...formData,
-              image: finalImage,
-              features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
-              date: formData.year || p.date
-            }
+      setProjects(projects.map(p =>
+        p.id === editingProject.id
+          ? {
+            ...p,
+            ...formData,
+            image: finalImage,
+            features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
+            date: formData.year || p.date
+          }
           : p
       ));
       alert("Project updated successfully!");
@@ -137,27 +137,27 @@ export function AdminProjectsPage() {
   return (
     <AdminLayout>
       <div>
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-white text-3xl mb-2">Manage Projects</h1>
-            <p className="text-slate-400">{projects.length} projects</p>
+            <h1 className="text-white text-2xl sm:text-3xl mb-2">Manage Projects</h1>
+            <p className="text-slate-400 text-sm sm:text-base">{projects.length} projects</p>
           </div>
-          <button 
+          <button
             onClick={handleAddNew}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all flex items-center gap-2"
+            className="bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all flex items-center gap-2 text-sm sm:text-base w-full sm:w-auto justify-center"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             Add New Project
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {projects.map((project, index) => (
-            <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <div className="flex items-start justify-between gap-4">
+            <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 sm:p-6 border border-slate-700">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
                 {/* Project Image */}
                 {project.image && (
-                  <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                  <div className="w-full sm:w-32 h-48 sm:h-32 flex-shrink-0 rounded-lg overflow-hidden">
                     <ImageWithFallback
                       src={project.image}
                       alt={project.title}
@@ -165,15 +165,15 @@ export function AdminProjectsPage() {
                     />
                   </div>
                 )}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-white text-xl">{project.title}</h3>
-                    <span className={`px-3 py-1 border rounded-full text-sm ${getStatusColor(project.status)}`}>{project.status}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                    <h3 className="text-white text-lg sm:text-xl">{project.title}</h3>
+                    <span className={`px-2.5 sm:px-3 py-1 border rounded-full text-xs sm:text-sm ${getStatusColor(project.status)}`}>{project.status}</span>
                   </div>
-                  <p className="text-slate-400 mb-3">{project.description}</p>
-                  <div className="flex items-center gap-4 text-sm text-slate-500">
+                  <p className="text-slate-400 text-sm sm:text-base mb-3">{project.description}</p>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-500">
                     <span>Client: {project.client}</span>
-                    <span>•</span>
+                    <span className="hidden sm:inline">•</span>
                     <span>{project.year || project.date}</span>
                   </div>
                   {/* Features */}
@@ -187,21 +187,21 @@ export function AdminProjectsPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2 ml-4">
-                  <button 
+                <div className="flex gap-2 w-full sm:w-auto sm:ml-4 mt-3 sm:mt-0">
+                  <button
                     onClick={() => handleEdit(project)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-lg transition-all"
+                    className="bg-orange-500 hover:bg-orange-600 text-white p-2.5 sm:p-3 rounded-lg transition-all flex-1 sm:flex-none"
                   >
-                    <Edit className="w-5 h-5" />
+                    <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                   {deleteConfirm === project.id ? (
                     <>
-                      <button onClick={() => setProjects(projects.filter(p => p.id !== project.id))} className="bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg transition-all text-sm">Confirm</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-3 rounded-lg transition-all text-sm">Cancel</button>
+                      <button onClick={() => setProjects(projects.filter(p => p.id !== project.id))} className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all text-xs sm:text-sm flex-1 sm:flex-none">Confirm</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all text-xs sm:text-sm flex-1 sm:flex-none">Cancel</button>
                     </>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(project.id)} className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg transition-all">
-                      <Trash2 className="w-5 h-5" />
+                    <button onClick={() => setDeleteConfirm(project.id)} className="bg-red-500 hover:bg-red-600 text-white p-2.5 sm:p-3 rounded-lg transition-all flex-1 sm:flex-none">
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   )}
                 </div>
@@ -214,9 +214,9 @@ export function AdminProjectsPage() {
       {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 p-8 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-white text-2xl">{editingProject ? "Edit Project" : "Add New Project"}</h2>
+          <div className="bg-slate-800 p-4 sm:p-8 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-white text-xl sm:text-2xl">{editingProject ? "Edit Project" : "Add New Project"}</h2>
               <button onClick={() => setShowEditModal(false)} className="text-white hover:text-slate-400 transition-colors">
                 <X className="w-6 h-6" />
               </button>
@@ -252,7 +252,7 @@ export function AdminProjectsPage() {
               {/* Image Upload Section */}
               <div className="space-y-2">
                 <label className="text-white text-sm font-medium">Image</label>
-                
+
                 {/* Image Preview */}
                 {imagePreview && (
                   <div className="w-full h-48 rounded-lg overflow-hidden mb-2 border border-slate-600">
@@ -263,7 +263,7 @@ export function AdminProjectsPage() {
                     />
                   </div>
                 )}
-                
+
                 {/* Image Upload Options */}
                 <div className="flex gap-4">
                   {/* File Upload */}
@@ -279,7 +279,7 @@ export function AdminProjectsPage() {
                       Upload Image
                     </div>
                   </label>
-                  
+
                   {/* URL Input */}
                   <div className="flex-1">
                     <input
