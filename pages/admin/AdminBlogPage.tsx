@@ -136,51 +136,43 @@ export function AdminBlogPage() {
   return (
     <AdminLayout>
       <div>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-white text-2xl sm:text-3xl mb-2">Manage Blog</h1>
-            <p className="text-slate-400 text-sm sm:text-base">{blogs.length} blog posts</p>
+            <h1 className="text-white text-3xl mb-2">Manage Blog</h1>
+            <p className="text-slate-400">{blogs.length} blog posts</p>
           </div>
           <button
             onClick={handleAddNew}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all flex items-center gap-2 text-sm sm:text-base w-full sm:w-auto justify-center"
+            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all flex items-center gap-2"
           >
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Plus className="w-5 h-5" />
             Add New Post
           </button>
         </div>
 
-        <div className="space-y-3 sm:space-y-4">
+        <div className="space-y-4">
           {blogs.map((blog, index) => (
-            <motion.div key={blog.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 sm:p-6 border border-slate-700">
-              <div className="flex flex-col sm:flex-row items-start gap-4">
+            <motion.div key={blog.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+              <div className="flex items-start gap-4">
                 {/* Blog Image */}
-                <div className="w-full sm:w-32 h-48 sm:h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden">
                   <ImageWithFallback
                     src={blog.image}
                     alt={blog.title}
                     className="w-full h-full object-cover"
                   />
                 </div>
+
+                {/* Blog Content */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white text-lg sm:text-xl mb-2">{blog.title}</h3>
-                  <p className="text-slate-400 text-sm sm:text-base mb-3">{blog.excerpt}</p>
+                  <h3 className="text-white text-xl mb-2">{blog.title}</h3>
+                  <p className="text-slate-400 mb-3">{blog.excerpt}</p>
 
-                  {/* Full Content Preview */}
-                  {blog.content && (
-                    <div className="mb-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700 max-h-32 overflow-y-auto">
-                      <div
-                        className="text-slate-300 text-sm prose prose-invert prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: blog.content.substring(0, 200) + (blog.content.length > 200 ? '...' : '') }}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-slate-500">
+                  <div className="flex items-center gap-4 text-sm text-slate-500">
                     <span>By {blog.author}</span>
-                    <span className="hidden sm:inline">•</span>
+                    <span>•</span>
                     <span>{blog.date}</span>
-                    <span className="hidden sm:inline">•</span>
+                    <span>•</span>
                     <span className="text-cyan-400">{blog.category}</span>
                     {blog.readTime && (
                       <>
@@ -190,21 +182,23 @@ export function AdminBlogPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto sm:ml-4 mt-3 sm:mt-0">
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 ml-4">
                   <button
                     onClick={() => handleEdit(blog)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white p-2.5 sm:p-3 rounded-lg transition-all flex-1 sm:flex-none"
+                    className="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-lg transition-all"
                   >
-                    <Edit className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <Edit className="w-5 h-5" />
                   </button>
                   {deleteConfirm === blog.id ? (
                     <>
-                      <button onClick={() => setBlogs(blogs.filter(b => b.id !== blog.id))} className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all text-xs sm:text-sm flex-1 sm:flex-none">Confirm</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg transition-all text-xs sm:text-sm flex-1 sm:flex-none">Cancel</button>
+                      <button onClick={() => setBlogs(blogs.filter(b => b.id !== blog.id))} className="bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg transition-all text-sm">Confirm</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-3 rounded-lg transition-all text-sm">Cancel</button>
                     </>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(blog.id)} className="bg-red-500 hover:bg-red-600 text-white p-2.5 sm:p-3 rounded-lg transition-all flex-1 sm:flex-none">
-                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <button onClick={() => setDeleteConfirm(blog.id)} className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg transition-all">
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   )}
                 </div>
