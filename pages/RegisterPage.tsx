@@ -74,16 +74,6 @@ export function RegisterPage() {
       >
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="inline-block mb-4"
-          >
-            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto">
-              <span className="text-white text-2xl">🚀</span>
-            </div>
-          </motion.div>
           <h1 className="text-white text-3xl mb-2">Create Account</h1>
           <p className="text-slate-400">Join Vytrion Technologies today</p>
         </div>

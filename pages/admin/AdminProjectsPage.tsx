@@ -137,27 +137,27 @@ export function AdminProjectsPage() {
   return (
     <AdminLayout>
       <div>
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0 mb-6 lg:mb-8">
           <div>
-            <h1 className="text-white text-3xl mb-2">Manage Projects</h1>
-            <p className="text-slate-400">{projects.length} projects</p>
+            <h1 className="text-white text-2xl lg:text-3xl mb-1 lg:mb-2">Manage Projects</h1>
+            <p className="text-slate-400 text-sm lg:text-base">{projects.length} projects</p>
           </div>
           <button
             onClick={handleAddNew}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all flex items-center gap-2"
+            className="bg-green-500 hover:bg-green-600 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-lg transition-all flex items-center justify-center gap-2 text-sm lg:text-base w-full lg:w-auto"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 lg:w-5 lg:h-5" />
             Add New Project
           </button>
         </div>
 
         <div className="space-y-4">
           {projects.map((project, index) => (
-            <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <div className="flex items-start gap-4">
+            <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
+              <div className="flex items-start gap-3 lg:gap-4">
                 {/* Project Image */}
                 {project.image && (
-                  <div className="w-32 h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                  <div className="w-24 h-24 lg:w-32 lg:h-32 flex-shrink-0 rounded-lg overflow-hidden">
                     <ImageWithFallback
                       src={project.image}
                       alt={project.title}
@@ -168,19 +168,19 @@ export function AdminProjectsPage() {
 
                 {/* Project Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-white text-xl">{project.title}</h3>
-                    <span className={`px-3 py-1 border rounded-full text-sm ${getStatusColor(project.status)}`}>{project.status}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:gap-3 mb-1 lg:mb-2">
+                    <h3 className="text-white text-lg lg:text-xl line-clamp-2">{project.title}</h3>
+                    <span className={`px-2 lg:px-3 py-1 border rounded-full text-xs lg:text-sm w-fit ${getStatusColor(project.status)}`}>{project.status}</span>
                   </div>
-                  <p className="text-slate-400 mb-3">{project.description}</p>
-                  <div className="flex items-center gap-4 text-sm text-slate-500">
+                  <p className="text-slate-400 mb-2 lg:mb-3 text-sm lg:text-base line-clamp-2">{project.description}</p>
+                  <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-xs lg:text-sm text-slate-500">
                     <span>Client: {project.client}</span>
-                    <span>•</span>
+                    <span className="hidden lg:inline">•</span>
                     <span>{project.year || project.date}</span>
                   </div>
                   {/* Features */}
                   {project.features && project.features.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-2 lg:mt-3 flex flex-wrap gap-2">
                       {project.features.map((feature, i) => (
                         <span key={i} className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
                           {feature}
@@ -191,21 +191,21 @@ export function AdminProjectsPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 ml-4">
+                <div className="flex gap-2 lg:ml-4 flex-shrink-0">
                   <button
                     onClick={() => handleEdit(project)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-lg transition-all"
+                    className="bg-orange-500 hover:bg-orange-600 text-white p-2 lg:p-3 rounded-lg transition-all"
                   >
-                    <Edit className="w-5 h-5" />
+                    <Edit className="w-4 h-4 lg:w-5 lg:h-5" />
                   </button>
                   {deleteConfirm === project.id ? (
                     <>
-                      <button onClick={() => setProjects(projects.filter(p => p.id !== project.id))} className="bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg transition-all text-sm">Confirm</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-3 rounded-lg transition-all text-sm">Cancel</button>
+                      <button onClick={() => setProjects(projects.filter(p => p.id !== project.id))} className="bg-red-500 hover:bg-red-600 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm">Confirm</button>
+                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm">Cancel</button>
                     </>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(project.id)} className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-lg transition-all">
-                      <Trash2 className="w-5 h-5" />
+                    <button onClick={() => setDeleteConfirm(project.id)} className="bg-red-500 hover:bg-red-600 text-white p-2 lg:p-3 rounded-lg transition-all">
+                      <Trash2 className="w-4 h-4 lg:w-5 lg:h-5" />
                     </button>
                   )}
                 </div>
@@ -218,40 +218,40 @@ export function AdminProjectsPage() {
       {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 p-4 sm:p-8 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h2 className="text-white text-xl sm:text-2xl">{editingProject ? "Edit Project" : "Add New Project"}</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-white hover:text-slate-400 transition-colors">
-                <X className="w-6 h-6" />
+          <div className="bg-slate-800 p-4 lg:p-8 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 lg:mb-6">
+              <h2 className="text-white text-lg lg:text-2xl">{editingProject ? "Edit Project" : "Add New Project"}</h2>
+              <button onClick={() => setShowEditModal(false)} className="text-white hover:text-slate-400 transition-colors flex-shrink-0">
+                <X className="w-5 h-5 lg:w-6 lg:h-6" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3 lg:space-y-4">
               <input
                 type="text"
                 placeholder="Title *"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base"
               />
               <textarea
                 placeholder="Description *"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full h-24 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full h-20 lg:h-24 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base resize-none"
               />
               <input
                 type="text"
                 placeholder="Client *"
                 value={formData.client}
                 onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base"
               />
               <input
                 type="text"
                 placeholder="Year (e.g., 2024)"
                 value={formData.year}
                 onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base"
               />
               {/* Image Upload Section */}
               <div className="space-y-2">
@@ -259,7 +259,7 @@ export function AdminProjectsPage() {
 
                 {/* Image Preview */}
                 {imagePreview && (
-                  <div className="w-full h-48 rounded-lg overflow-hidden mb-2 border border-slate-600">
+                  <div className="w-full h-40 lg:h-48 rounded-lg overflow-hidden mb-2 border border-slate-600">
                     <ImageWithFallback
                       src={imagePreview}
                       alt="Preview"
@@ -269,7 +269,7 @@ export function AdminProjectsPage() {
                 )}
 
                 {/* Image Upload Options */}
-                <div className="flex gap-4">
+                <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
                   {/* File Upload */}
                   <label className="flex-1 cursor-pointer">
                     <input
@@ -278,9 +278,9 @@ export function AdminProjectsPage() {
                       onChange={handleImageChange}
                       className="hidden"
                     />
-                    <div className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-3 rounded-lg transition-all flex items-center justify-center gap-2 border border-slate-600">
-                      <Upload className="w-5 h-5" />
-                      Upload Image
+                    <div className="bg-slate-700 hover:bg-slate-600 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all flex items-center justify-center gap-2 border border-slate-600 text-sm lg:text-base">
+                      <Upload className="w-4 h-4 lg:w-5 lg:h-5" />
+                      <span>Upload Image</span>
                     </div>
                   </label>
 
@@ -291,7 +291,7 @@ export function AdminProjectsPage() {
                       placeholder="Or enter image URL"
                       value={formData.image}
                       onChange={(e) => handleImageUrlChange(e.target.value)}
-                      className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base"
                     />
                   </div>
                 </div>
@@ -301,27 +301,27 @@ export function AdminProjectsPage() {
                 placeholder="Features (comma separated, e.g., Web Development, Mobile Apps)"
                 value={formData.features}
                 onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-                className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full h-16 lg:h-20 focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base resize-none"
               />
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="bg-slate-700 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500 text-sm lg:text-base"
               >
                 <option value="Completed">Completed</option>
                 <option value="In Progress">In Progress</option>
               </select>
             </div>
-            <div className="flex gap-4 mt-6">
+            <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 mt-4 lg:mt-6">
               <button
                 onClick={handleSave}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all"
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-lg transition-all text-sm lg:text-base"
               >
                 Save
               </button>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                className="px-4 lg:px-6 py-2 lg:py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all text-sm lg:text-base"
               >
                 Cancel
               </button>

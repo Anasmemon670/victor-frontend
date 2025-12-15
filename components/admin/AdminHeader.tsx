@@ -2,10 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Menu } from "lucide-react";
 import logoImage from "@/assets/77ac9b30465e2a638fe36d43d6692e10b6bf92e1.png";
 
-export function AdminHeader() {
+interface AdminHeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
 
@@ -15,7 +19,6 @@ export function AdminHeader() {
   };
 
   const handleLogoClick = () => {
-    // Admin logged in, keep them in admin UI
     router.push("/admin");
   };
 
@@ -23,15 +26,24 @@ export function AdminHeader() {
     <header className="bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 border-b border-slate-700 sticky top-0 z-50">
       <div className="px-4 sm:px-6 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          {/* Logo */}
-          <div
-            onClick={handleLogoClick}
-            className="flex items-center gap-2 sm:gap-3 cursor-pointer"
-          >
-            <img src={logoImage.src} alt="Vytrion Technologies" className="h-6 sm:h-8" />
-            <span className="text-cyan-400 text-xs sm:text-sm bg-cyan-400/10 px-2 sm:px-3 py-1 rounded-full border border-cyan-400/30">
-              Admin Panel
-            </span>
+          {/* Logo and Menu Button */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onMenuClick}
+              className="lg:hidden text-white hover:text-cyan-400 transition-colors p-2 -ml-2"
+              aria-label="Toggle menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div
+              onClick={handleLogoClick}
+              className="flex items-center gap-2 sm:gap-3 cursor-pointer"
+            >
+              <img src={logoImage.src} alt="Vytrion Technologies" className="h-6 sm:h-8" />
+              <span className="text-cyan-400 text-xs sm:text-sm bg-cyan-400/10 px-2 sm:px-3 py-1 rounded-full border border-cyan-400/30">
+                Admin Panel
+              </span>
+            </div>
           </div>
 
           {/* Admin User Info */}
