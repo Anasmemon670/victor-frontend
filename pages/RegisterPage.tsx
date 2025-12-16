@@ -49,12 +49,39 @@ export function RegisterPage() {
       return;
     }
 
-    const success = await register(name, email, password);
+    // Split name into firstName and lastName
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
 
-    if (success) {
-      router.push("/");
-    } else {
-      setError("Registration failed. Please try again.");
+    if (!firstName || !lastName) {
+      setError("Please provide both first and last name");
+      return;
+    }
+
+    try {
+      const result = await register(firstName, lastName, email, password, agreedToTerms, false);
+
+      if (result.success) {
+        // Wait a bit for state to update, then redirect
+        setTimeout(() => {
+          router.push("/");
+          router.refresh(); // Refresh to ensure page loads correctly
+        }, 100);
+      } else {
+        setError(result.error || "Registration failed. Please try again.");
+      }
+    } catch (err: any) {
+      // Handle network errors specifically
+      if (!err.response) {
+        if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error') || err.message?.includes('ERR_NETWORK')) {
+          setError("Cannot connect to server. Please make sure the backend server is running on port 5000.");
+        } else {
+          setError("Network error. Please check your connection and try again.");
+        }
+      } else {
+        setError(err.response?.data?.error || err.message || "Registration failed. Please try again.");
+      }
     }
   };
 

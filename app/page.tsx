@@ -1,7 +1,6 @@
-import { HomePage } from "@/pages/HomePage";
+"use client";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { HomePage } from "@/pages/HomePage";
 
 export default function Page() {
   return <HomePage />;

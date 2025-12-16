@@ -1,31 +1,40 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { authAPI } from "@/lib/api";
 import { motion, AnimatePresence } from "motion/react";
-import { User, Camera, Save, ArrowLeft, X, CheckCircle } from "lucide-react";
+import { User, Save, ArrowLeft, X, CheckCircle, Loader2, Camera } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, updateUser } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [profilePicture, setProfilePicture] = useState("");
-  const [preview, setPreview] = useState("");
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const { user, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!user) {
       router.push("/login");
       return;
     }
-    setName(user.name || "");
+    setFirstName(user.firstName || "");
+    setLastName(user.lastName || "");
     setEmail(user.email || "");
-    setProfilePicture(user.profilePicture || "");
-    setPreview(user.profilePicture || "");
+    setPhone(user.phone || "");
+    setProfilePicture(user.profilePicture || null);
+    setPreview(user.profilePicture || null);
+    setMarketingOptIn(user.marketingOptIn || false);
   }, [user, router]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,13 +42,13 @@ export default function ProfilePage() {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        toast.error('Please select an image file');
         return;
       }
       
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+        toast.error('Image size should be less than 5MB');
         return;
       }
       
@@ -51,29 +60,28 @@ export default function ProfilePage() {
         setPreview(imageUrl);
       };
       reader.onerror = () => {
-        alert('Error reading file. Please try again.');
+        toast.error('Error reading file. Please try again.');
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSaveClick = () => {
-    if (!name.trim()) {
-      alert("Name is required");
-      return;
-    }
-    if (!email.trim()) {
-      alert("Email is required");
+    if (!firstName.trim() || !lastName.trim()) {
+      toast.error("First name and last name are required");
       return;
     }
 
     // Check if there are any changes
-    const hasNameChange = name.trim() !== (user?.name || '');
-    const hasEmailChange = email.trim() !== (user?.email || '');
-    const hasImageChange = (preview || profilePicture) !== (user?.profilePicture || '');
+    const hasFirstNameChange = firstName.trim() !== (user?.firstName || '');
+    const hasLastNameChange = lastName.trim() !== (user?.lastName || '');
+    const hasEmailChange = email !== (user?.email || '');
+    const hasPhoneChange = phone !== (user?.phone || '');
+    const hasProfilePictureChange = profilePicture !== (user?.profilePicture || null);
+    const hasMarketingChange = marketingOptIn !== (user?.marketingOptIn || false);
     
-    if (!hasNameChange && !hasEmailChange && !hasImageChange) {
-      alert("No changes to save");
+    if (!hasFirstNameChange && !hasLastNameChange && !hasEmailChange && !hasPhoneChange && !hasProfilePictureChange && !hasMarketingChange) {
+      toast.info("No changes to save");
       return;
     }
 
@@ -81,33 +89,35 @@ export default function ProfilePage() {
     setShowConfirmModal(true);
   };
 
-  const handleConfirmSave = () => {
-    if (!updateUser || !user) {
-      alert("Error: Cannot update profile");
+  const handleConfirmSave = async () => {
+    if (!user) {
+      toast.error("Error: Cannot update profile");
       return;
     }
 
-    // Get the profile picture - use preview if available, otherwise use profilePicture state
-    const finalProfilePicture = preview || profilePicture;
-    
-    // Create updated user object with all required fields
-    const updatedUser: typeof user = {
-      id: user.id,
-      name: name.trim(),
-      email: email.trim(),
-      profilePicture: finalProfilePicture || user.profilePicture || '',
-      isAdmin: user.isAdmin || false
-    };
-    
-    // Update user in context
-    updateUser(updatedUser);
-    
-    // Also update local state
-    setProfilePicture(finalProfilePicture || '');
-    setPreview(finalProfilePicture || '');
-    
-    // Close modal
-    setShowConfirmModal(false);
+    setIsSaving(true);
+    try {
+      const response = await authAPI.updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email || undefined,
+        phone: phone || undefined,
+        profilePicture: profilePicture || null,
+        marketingOptIn,
+      });
+
+      if (response.user) {
+        await refreshUser();
+        toast.success("Profile updated successfully!");
+        setShowConfirmModal(false);
+      } else {
+        toast.error("Failed to update profile");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || "Failed to update profile");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelSave = () => {
@@ -117,6 +127,16 @@ export default function ProfilePage() {
   if (!user) {
     return null;
   }
+
+  const getUserInitial = () => {
+    if (user.firstName) {
+      return user.firstName[0]?.toUpperCase() || "U";
+    }
+    if (user.email) {
+      return user.email[0]?.toUpperCase() || "U";
+    }
+    return "U";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 pt-20 pb-12">
@@ -146,22 +166,23 @@ export default function ProfilePage() {
               {/* Profile Picture Section */}
               <div className="flex flex-col items-center mb-8">
                 <div className="relative">
-                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-cyan-500/50 bg-slate-700 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-cyan-500/50 bg-slate-700 flex items-center justify-center aspect-square">
                     {preview ? (
                       <img
                         src={preview}
-                        alt={name}
-                        className="w-full h-full object-cover"
+                        alt={`${firstName} ${lastName}`}
+                        className="w-full h-full object-cover rounded-full"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center rounded-full">
                         <span className="text-white text-4xl font-bold">
-                          {name[0]?.toUpperCase() || "U"}
+                          {getUserInitial()}
                         </span>
                       </div>
                     )}
                   </div>
                   <button
+                    type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="absolute bottom-0 right-0 bg-cyan-500 hover:bg-cyan-600 text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110"
                   >
@@ -178,14 +199,26 @@ export default function ProfilePage() {
                 <p className="text-slate-400 text-sm mt-4">Click camera icon to upload profile picture</p>
               </div>
 
-              {/* Name Field */}
+              {/* First Name Field */}
               <div>
-                <label className="text-slate-300 text-sm mb-2 block">Full Name</label>
+                <label className="text-slate-300 text-sm mb-2 block">First Name</label>
                 <input
                   type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter your first name"
+                  className="w-full bg-slate-900/50 border border-slate-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* Last Name Field */}
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">Last Name</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Enter your last name"
                   className="w-full bg-slate-900/50 border border-slate-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                 />
               </div>
@@ -200,6 +233,32 @@ export default function ProfilePage() {
                   placeholder="Enter your email"
                   className="w-full bg-slate-900/50 border border-slate-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
                 />
+              </div>
+
+              {/* Phone Field */}
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Enter your phone number"
+                  className="w-full bg-slate-900/50 border border-slate-600 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                />
+              </div>
+
+              {/* Marketing Opt-in */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="marketing"
+                  checked={marketingOptIn}
+                  onChange={(e) => setMarketingOptIn(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-cyan-500 focus:ring-2 focus:ring-cyan-500"
+                />
+                <label htmlFor="marketing" className="text-slate-300 text-sm">
+                  I want to receive marketing emails and updates
+                </label>
               </div>
 
               {/* Save Button */}
@@ -241,22 +300,33 @@ export default function ProfilePage() {
               </div>
 
               <p className="text-slate-300 mb-6">
-                Are you sure you want to update your profile? This will change your profile picture and/or name.
+                Are you sure you want to update your profile?
               </p>
 
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelSave}
-                  className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                  disabled={isSaving}
+                  className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmSave}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg transition-all flex items-center justify-center gap-2"
+                  disabled={isSaving}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  <CheckCircle className="w-5 h-5" />
-                  Yes, Update
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Yes, Update
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -266,4 +336,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

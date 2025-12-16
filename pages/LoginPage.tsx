@@ -9,7 +9,7 @@ import { Mail, Lock, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 
 export function LoginPage() {
   const router = useRouter();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,17 +33,26 @@ export function LoginPage() {
       return;
     }
 
-    const success = await login(email, password);
+    try {
+      const success = await login(email, password);
 
-    if (success) {
-      // Check if admin and redirect accordingly
-      if (email === "admin@example.com" && password === "admin123") {
-        router.push("/admin");
+      if (success) {
+        // Wait a bit for state to update, then check if admin
+        setTimeout(() => {
+          const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+          if (currentUser?.isAdmin) {
+            router.push("/admin");
+            router.refresh();
+          } else {
+            router.push("/");
+            router.refresh();
+          }
+        }, 100);
       } else {
-        router.push("/");
+        setError("Invalid email or password");
       }
-    } else {
-      setError("Invalid email or password");
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Login failed. Please try again.");
     }
   };
 

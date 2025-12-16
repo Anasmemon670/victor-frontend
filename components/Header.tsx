@@ -21,6 +21,25 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  
+  const getUserDisplayName = () => {
+    if (!user) return "User";
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    return user.email || user.phone || "User";
+  };
+  
+  const getUserInitial = () => {
+    if (!user) return "U";
+    if (user.firstName) {
+      return user.firstName[0]?.toUpperCase() || "U";
+    }
+    if (user.email) {
+      return user.email[0]?.toUpperCase() || "U";
+    }
+    return "U";
+  };
   const { getTotalItems } = useCart();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -81,10 +100,10 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     setIsUserMenuOpen(false);
-    router.push("/");
+    router.push("/login");
   };
 
   const markAsRead = (id: number) => {
@@ -255,19 +274,18 @@ export function Header() {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center gap-3 text-white hover:text-cyan-400 transition-colors group"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-cyan-500/50 transition-all overflow-hidden">
-                      {user.profilePicture && user.profilePicture.trim() !== '' && user.profilePicture.startsWith('data:image') ? (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-cyan-500/50 transition-all overflow-hidden aspect-square">
+                      {user?.profilePicture ? (
                         <img
-                          key={`${user.id}-${user.profilePicture.substring(0, 50)}`} // Force re-render when image changes
                           src={user.profilePicture}
-                          alt={user.name}
-                          className="w-full h-full object-cover"
+                          alt={getUserDisplayName()}
+                          className="w-full h-full object-cover rounded-full"
                         />
                       ) : (
-                        <span>{user.name[0]?.toUpperCase() || 'U'}</span>
+                        <span>{getUserInitial()}</span>
                       )}
                     </div>
-                    <span className="font-medium text-xs sm:text-sm hidden xl:block max-w-[100px] xl:max-w-none truncate">{user.name}</span>
+                    <span className="font-medium text-xs sm:text-sm hidden xl:block max-w-[100px] xl:max-w-none truncate">{getUserDisplayName()}</span>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -282,8 +300,8 @@ export function Header() {
                         className="absolute top-full mt-4 right-0 bg-slate-800 rounded-lg shadow-xl py-2 min-w-[200px] border border-slate-700 z-50"
                       >
                         <div className="px-4 py-3 border-b border-slate-700 mb-2">
-                          <p className="text-white font-medium">{user.name}</p>
-                          <p className="text-slate-400 text-xs truncate">{user.email}</p>
+                          <p className="text-white font-medium">{getUserDisplayName()}</p>
+                          <p className="text-slate-400 text-xs truncate">{user.email || user.phone || "No contact"}</p>
                         </div>
                         <Link
                           href="/profile"
@@ -459,23 +477,22 @@ export function Header() {
                   <>
                     <div className="px-3 py-2 border-b border-slate-700 border-t mt-2">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="w-8 h-8 rounded-full border-2 border-cyan-500 overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                          {user.profilePicture && user.profilePicture.trim() !== '' && user.profilePicture.startsWith('data:image') ? (
+                        <div className="w-8 h-8 rounded-full border-2 border-cyan-500 overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center aspect-square">
+                          {user?.profilePicture ? (
                             <img
-                              key={`${user.id}-${user.profilePicture.substring(0, 50)}`} // Force re-render when image changes
                               src={user.profilePicture}
-                              alt={user.name}
-                              className="w-full h-full object-cover"
+                              alt={getUserDisplayName()}
+                              className="w-full h-full object-cover rounded-full"
                             />
                           ) : (
                             <span className="text-white text-xs font-bold">
-                              {user.name[0]?.toUpperCase() || 'U'}
+                              {getUserInitial()}
                             </span>
                           )}
                         </div>
                         <div>
-                          <p className="text-white text-sm">{user.name}</p>
-                          <p className="text-slate-400 text-xs">{user.email}</p>
+                          <p className="text-white text-sm">{getUserDisplayName()}</p>
+                          <p className="text-slate-400 text-xs">{user.email || user.phone || "No contact"}</p>
                         </div>
                       </div>
                     </div>
