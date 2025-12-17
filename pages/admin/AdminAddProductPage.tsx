@@ -191,14 +191,31 @@ export function AdminAddProductPage() {
         });
       }
 
+      // Prepare product data exactly as per form structure
+      // Map form fields to API fields:
+      // - Product Name (formData.name) -> title
+      // - Category (formData.category) -> category
+      // - Price (formData.price) -> price
+      // - Discount (formData.discount) -> discount
+      // - HS Code (formData.hsCode) -> hsCode
+      // - Stock Quantity (formData.stock) -> stock
+      // - Description (formData.description) -> description
+      // - Mark as On Offer (formData.onOffer) -> featured (if true)
+      // - Big Offer (formData.bigOffer) -> featured (if true, takes priority)
+      // - Images (images array) -> images
+      // - Supplier (formData.supplier) -> supplierId (if valid)
+      
+      // Prepare product data - ensure all fields match backend schema
+      // Backend expects: title (required), price (required), hsCode (required), stock (required)
+      // Optional fields should be null or undefined, not empty strings
       productData = {
         title: formData.name.trim(),
         price: price,
-        description: formData.description.trim(),
-        category: formData.category.trim(),
-        discount: discount > 0 ? discount : undefined,
-        featured: formData.bigOffer || false,
-        images: processedImages,
+        description: formData.description.trim() || null, // Use null instead of undefined for optional fields
+        category: formData.category.trim() || null, // Use null for empty category
+        discount: discount > 0 ? discount : null, // Use null instead of undefined
+        featured: formData.bigOffer || formData.onOffer || false, // "Big Offer" or "On Offer" sets featured
+        images: processedImages && processedImages.length > 0 ? processedImages : null, // Use null for empty arrays
         hsCode: formData.hsCode.trim(),
         stock: stock,
       };
@@ -208,26 +225,27 @@ export function AdminAddProductPage() {
         productData.supplierId = formData.supplier;
       }
 
-      console.log('Sending product data to API:', JSON.stringify(productData, null, 2));
+      // Remove undefined values to avoid validation issues
+      // Zod schema accepts null for optional fields but undefined might cause issues
+      const cleanedProductData: any = {}
+      Object.keys(productData).forEach(key => {
+        const value = productData[key as keyof typeof productData]
+        // Only include the field if it's not undefined
+        // null values are allowed for optional fields
+        if (value !== undefined) {
+          cleanedProductData[key] = value
+        }
+      })
+
+      console.log('Sending product data to API:', JSON.stringify(cleanedProductData, null, 2));
 
       if (isEdit && id) {
-        // Update existing product
-        await productsAPI.update(id, {
-          title: productData.title,
-          price: productData.price,
-          description: productData.description,
-          category: productData.category,
-          discount: productData.discount,
-          featured: productData.featured,
-          images: productData.images,
-          hsCode: productData.hsCode,
-          stock: productData.stock,
-          supplierId: productData.supplierId || null,
-        });
+        // Update existing product - use cleaned data
+        await productsAPI.update(id, cleanedProductData);
         alert("Product updated successfully!");
       } else {
-        // Create new product
-        await productsAPI.create(productData);
+        // Create new product - use cleaned data
+        await productsAPI.create(cleanedProductData);
         alert("Product added successfully!");
       }
 
@@ -237,6 +255,11 @@ export function AdminAddProductPage() {
       console.error('Full error response:', err.response?.data);
       if (productData) {
         console.error('Request data sent:', productData);
+      }
+      
+      // Log validation errors in detail
+      if (err.response?.data?.details) {
+        console.error('Validation error details:', err.response.data.details);
       }
       
       let errorMessage = 'Failed to save product. Please try again.';
