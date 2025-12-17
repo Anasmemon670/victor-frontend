@@ -1,57 +1,62 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Edit, Trash2, Plus, X, Upload } from "lucide-react";
-import { projects as sharedProjects } from "@/data/projects";
+import { Edit, Trash2, Plus, X, Upload, Loader2 } from "lucide-react";
+import { projectsAPI } from "@/lib/api";
 import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
 
 interface Project {
-  id: number;
+  id: string;
   title: string;
-  description: string;
-  client: string;
-  date: string;
-  status: string;
-  image?: string;
-  features?: string[];
+  description?: string;
+  client?: string;
   year?: string;
+  status: string;
+  images?: string[] | null;
+  features?: string[] | null;
+  createdAt: string;
 }
 
-// Convert shared projects to admin format
-const convertToAdminFormat = (project: typeof sharedProjects[0]): Project => {
-  return {
-    id: project.id,
-    title: project.title,
-    description: project.description,
-    client: project.client,
-    date: project.year || new Date().getFullYear().toString(),
-    status: project.status,
-    image: project.image,
-    features: project.features,
-    year: project.year
-  };
-};
-
-// Initialize with shared projects converted to admin format
-const initialProjects: Project[] = sharedProjects.map(convertToAdminFormat);
-
 export function AdminProjectsPage() {
-  const [projects, setProjects] = useState(initialProjects);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     client: "",
-    status: "Completed",
+    status: "Completed" as "Completed" | "In Progress",
     image: "",
     features: "",
     year: ""
   });
   const [imagePreview, setImagePreview] = useState<string>("");
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await projectsAPI.getAll({ limit: 100 });
+        setProjects(response.projects || []);
+      } catch (err: any) {
+        console.error('Error fetching projects:', err);
+        setError(err.response?.data?.error || 'Failed to load projects');
+        setProjects([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
 
   const getStatusColor = (status: string) => status === "Completed" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-blue-500/20 text-blue-400 border-blue-500/30";
 
@@ -64,16 +69,18 @@ export function AdminProjectsPage() {
 
   const handleEdit = (project: Project) => {
     setEditingProject(project);
+    const images = project.images && Array.isArray(project.images) ? project.images : [];
+    const features = project.features && Array.isArray(project.features) ? project.features : [];
     setFormData({
       title: project.title,
-      description: project.description,
-      client: project.client,
-      status: project.status,
-      image: project.image || "",
-      features: project.features?.join(", ") || "",
-      year: project.year || project.date
+      description: project.description || "",
+      client: project.client || "",
+      status: project.status as "Completed" | "In Progress",
+      image: images[0] || "",
+      features: features.join(", "),
+      year: project.year || ""
     });
-    setImagePreview(project.image || "");
+    setImagePreview(images[0] || "");
     setShowEditModal(true);
   };
 
@@ -96,42 +103,67 @@ export function AdminProjectsPage() {
     setImagePreview(url);
   };
 
-  const handleSave = () => {
-    if (!formData.title.trim() || !formData.description.trim() || !formData.client.trim()) {
-      alert("Please fill all required fields!");
+  const handleSave = async () => {
+    if (!formData.title.trim()) {
+      alert("Please fill in the title!");
       return;
     }
 
-    const finalImage = imagePreview || formData.image;
+    try {
+      setSaving(true);
+      const images = imagePreview || formData.image ? [imagePreview || formData.image] : [];
+      const features = formData.features ? formData.features.split(",").map(f => f.trim()).filter(f => f) : [];
 
-    if (editingProject) {
-      // Update existing project
-      setProjects(projects.map(p =>
-        p.id === editingProject.id
-          ? {
-            ...p,
-            ...formData,
-            image: finalImage,
-            features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
-            date: formData.year || p.date
-          }
-          : p
-      ));
-      alert("Project updated successfully!");
-    } else {
-      // Add new project
-      const newProject: Project = {
-        id: Math.max(...projects.map(p => p.id)) + 1,
-        ...formData,
-        image: finalImage,
-        features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
-        date: formData.year || new Date().getFullYear().toString(),
-        year: formData.year || new Date().getFullYear().toString()
-      };
-      setProjects([newProject, ...projects]);
-      alert("Project added successfully!");
+      if (editingProject) {
+        // Update existing project
+        const response = await projectsAPI.update(editingProject.id, {
+          title: formData.title,
+          description: formData.description || null,
+          client: formData.client || null,
+          year: formData.year || null,
+          status: formData.status,
+          images: images.length > 0 ? images : null,
+          features: features.length > 0 ? features : null,
+        });
+        setProjects(projects.map(p => p.id === editingProject.id ? response.project : p));
+        alert("Project updated successfully!");
+      } else {
+        // Create new project
+        const response = await projectsAPI.create({
+          title: formData.title,
+          description: formData.description || undefined,
+          client: formData.client || undefined,
+          year: formData.year || undefined,
+          status: formData.status,
+          images: images.length > 0 ? images : undefined,
+          features: features.length > 0 ? features : undefined,
+        });
+        setProjects([response.project, ...projects]);
+        alert("Project created successfully!");
+      }
+      setShowEditModal(false);
+    } catch (err: any) {
+      console.error('Error saving project:', err);
+      alert(err.response?.data?.error || 'Failed to save project');
+    } finally {
+      setSaving(false);
     }
-    setShowEditModal(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      setDeleting(true);
+      await projectsAPI.delete(deleteConfirm);
+      setProjects(projects.filter(p => p.id !== deleteConfirm));
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      console.error('Error deleting project:', err);
+      alert(err.response?.data?.error || 'Failed to delete project');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -151,15 +183,34 @@ export function AdminProjectsPage() {
           </button>
         </div>
 
-        <div className="space-y-4">
-          {projects.map((project, index) => (
-            <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-400">No projects yet. Create your first project!</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {projects.map((project, index) => {
+              const images = project.images && Array.isArray(project.images) ? project.images : [];
+              const features = project.features && Array.isArray(project.features) ? project.features : [];
+              
+              return (
+                <motion.div key={project.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
               <div className="flex items-start gap-3 lg:gap-4">
                 {/* Project Image */}
-                {project.image && (
+                {project.images && Array.isArray(project.images) && project.images[0] && (
                   <div className="w-24 h-24 lg:w-32 lg:h-32 flex-shrink-0 rounded-lg overflow-hidden">
                     <ImageWithFallback
-                      src={project.image}
+                      src={project.images[0]}
                       alt={project.title}
                       className="w-full h-full object-cover"
                     />
@@ -179,7 +230,7 @@ export function AdminProjectsPage() {
                     <span>{project.year || project.date}</span>
                   </div>
                   {/* Features */}
-                  {project.features && project.features.length > 0 && (
+                  {project.features && Array.isArray(project.features) && project.features.length > 0 && (
                     <div className="mt-2 lg:mt-3 flex flex-wrap gap-2">
                       {project.features.map((feature, i) => (
                         <span key={i} className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
@@ -200,19 +251,37 @@ export function AdminProjectsPage() {
                   </button>
                   {deleteConfirm === project.id ? (
                     <>
-                      <button onClick={() => setProjects(projects.filter(p => p.id !== project.id))} className="bg-red-500 hover:bg-red-600 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm">Confirm</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm">Cancel</button>
+                      <button 
+                        onClick={handleDeleteConfirm}
+                        disabled={deleting}
+                        className="bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm flex items-center gap-2"
+                      >
+                        {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
+                      </button>
+                      <button 
+                        onClick={() => setDeleteConfirm(null)}
+                        disabled={deleting}
+                        className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm"
+                      >
+                        Cancel
+                      </button>
                     </>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(project.id)} className="bg-red-500 hover:bg-red-600 text-white p-2 lg:p-3 rounded-lg transition-all">
+                    <button 
+                      onClick={() => setDeleteConfirm(project.id)}
+                      disabled={deleting}
+                      className="bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white p-2 lg:p-3 rounded-lg transition-all"
+                    >
                       <Trash2 className="w-4 h-4 lg:w-5 lg:h-5" />
                     </button>
                   )}
                 </div>
               </div>
             </motion.div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Edit Modal */}
@@ -315,13 +384,22 @@ export function AdminProjectsPage() {
             <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 mt-4 lg:mt-6">
               <button
                 onClick={handleSave}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-4 lg:px-6 py-2 lg:py-3 rounded-lg transition-all text-sm lg:text-base"
+                disabled={saving}
+                className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 lg:px-6 py-2 lg:py-3 rounded-lg transition-all text-sm lg:text-base flex items-center justify-center gap-2"
               >
-                Save
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
               </button>
               <button
                 onClick={() => setShowEditModal(false)}
-                className="px-4 lg:px-6 py-2 lg:py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all text-sm lg:text-base"
+                disabled={saving}
+                className="px-4 lg:px-6 py-2 lg:py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg transition-all text-sm lg:text-base"
               >
                 Cancel
               </button>

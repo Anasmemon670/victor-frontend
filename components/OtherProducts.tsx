@@ -7,21 +7,40 @@ import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useCart } from "../context/CartContext";
 import { toast } from "sonner";
+import { productsAPI } from "@/lib/api";
+
+interface Product {
+  id: string;
+  title: string;
+  price: string;
+  images?: string[] | null;
+  slug?: string;
+}
 
 export function OtherProducts() {
   const router = useRouter();
   const { addToCart } = useCart();
   const [isVisible, setIsVisible] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const products = [
-    { id: "1", name: "Wireless Headphones", rating: 4.8, reviews: 256, price: 149.99, image: "/images/products/headphones.png" },
-    { id: "2", name: "Smart Watch Pro", rating: 4.6, reviews: 189, price: 299.99, image: "/images/products/smart-watch.png" },
-    { id: "3", name: "Laptop Stand", rating: 4.9, reviews: 412, price: 79.99, image: "/images/products/laptop-stand.png" },
-    { id: "4", name: "USB-C Hub", rating: 4.7, reviews: 324, price: 49.99, image: "/images/products/usb-hub.png" },
-    { id: "5", name: "Wireless Charger", rating: 4.5, reviews: 198, price: 39.99, image: "/images/products/charging-pad.png" },
-    { id: "6", name: "Bluetooth Speaker", rating: 4.8, reviews: 267, price: 89.99, image: "/images/products/bluetooth-speaker.png" },
-  ];
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await productsAPI.getAll({ limit: 12 });
+        setProducts(response.products || []);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -42,12 +61,16 @@ export function OtherProducts() {
   }, []);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % products.length);
+    setCurrentSlide((prev) => (prev + 3 >= products.length ? 0 : prev + 3));
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + products.length) % products.length);
+    setCurrentSlide((prev) => (prev - 3 < 0 ? Math.max(0, products.length - 3) : prev - 3));
   };
+
+  if (products.length === 0 && !loading) {
+    return null; // Don't show section if no products
+  }
 
   return (
     <section id="other-products" className="py-12 sm:py-16 md:py-24 bg-slate-50">

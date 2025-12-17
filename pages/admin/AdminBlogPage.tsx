@@ -1,64 +1,65 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Edit, Trash2, Plus, X, Upload, Image as ImageIcon } from "lucide-react";
-import { blogPosts as sharedBlogPosts, featuredPost } from "@/data/blogPosts";
+import { Edit, Trash2, Plus, X, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
+import { blogAPI } from "@/lib/api";
 import { ImageWithFallback } from "../../components/figma/ImageWithFallback";
 
 interface BlogPost {
-  id: number;
+  id: string;
   title: string;
-  excerpt: string;
-  date: string;
-  author: string;
-  category: string;
-  image: string;
-  readTime?: string;
-  content?: string;
+  slug: string;
+  excerpt?: string;
+  content: string;
+  featuredImage?: string;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Convert shared blogs to admin format
-const convertToAdminFormat = (post: typeof sharedBlogPosts[0] | typeof featuredPost): BlogPost => {
-  return {
-    id: post.id,
-    title: post.title,
-    excerpt: post.excerpt,
-    date: post.date,
-    author: post.author,
-    category: post.category,
-    image: post.image,
-    readTime: 'readTime' in post ? post.readTime : undefined,
-    content: 'content' in post ? post.content : undefined
-  };
-};
-
-// Initialize with shared blogs (including featured post)
-const initialBlogs: BlogPost[] = [
-  convertToAdminFormat(featuredPost),
-  ...sharedBlogPosts.map(convertToAdminFormat)
-];
-
 export function AdminBlogPage() {
-  const [blogs, setBlogs] = useState(initialBlogs);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [blogs, setBlogs] = useState<BlogPost[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     excerpt: "",
-    author: "",
-    category: "",
-    image: "",
     content: "",
-    readTime: ""
+    featuredImage: "",
+    published: false
   });
   const [imagePreview, setImagePreview] = useState<string>("");
 
+  // Fetch blogs
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await blogAPI.getAll({ limit: 100, published: false });
+        setBlogs(response.posts || []);
+      } catch (err: any) {
+        console.error('Error fetching blogs:', err);
+        setError(err.response?.data?.error || 'Failed to load blog posts');
+        setBlogs([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlogs();
+  }, []);
+
   const handleAddNew = () => {
     setEditingBlog(null);
-    setFormData({ title: "", excerpt: "", author: "Admin", category: "", image: "", content: "", readTime: "" });
+    setFormData({ title: "", excerpt: "", content: "", featuredImage: "", published: false });
     setImagePreview("");
     setShowEditModal(true);
   };
@@ -67,71 +68,93 @@ export function AdminBlogPage() {
     setEditingBlog(blog);
     setFormData({
       title: blog.title,
-      excerpt: blog.excerpt,
-      author: blog.author,
-      category: blog.category,
-      image: blog.image,
-      content: blog.content || "",
-      readTime: blog.readTime || ""
+      excerpt: blog.excerpt || "",
+      content: blog.content,
+      featuredImage: blog.featuredImage || "",
+      published: blog.published
     });
-    setImagePreview(blog.image);
+    setImagePreview(blog.featuredImage || "");
     setShowEditModal(true);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // For local file preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      // Store file path or URL (in real app, you'd upload to server)
-      setFormData({ ...formData, image: URL.createObjectURL(file) });
-    }
-  };
-
   const handleImageUrlChange = (url: string) => {
-    setFormData({ ...formData, image: url });
+    setFormData({ ...formData, featuredImage: url });
     setImagePreview(url);
   };
 
-  const handleSave = () => {
-    if (!formData.title.trim() || !formData.excerpt.trim() || !formData.category.trim() || !formData.image.trim()) {
-      alert("Please fill all required fields including image!");
+  const handleSave = async () => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      alert("Please fill in title and content!");
       return;
     }
 
-    if (editingBlog) {
-      // Update existing blog
-      setBlogs(blogs.map(b =>
-        b.id === editingBlog.id
-          ? {
-            ...b,
-            ...formData,
-            image: imagePreview || formData.image,
-            content: formData.content,
-            readTime: formData.readTime
-          }
-          : b
-      ));
-      alert("Blog post updated successfully!");
-    } else {
-      // Add new blog
-      const newBlog: BlogPost = {
-        id: Math.max(...blogs.map(b => b.id)) + 1,
-        ...formData,
-        image: imagePreview || formData.image,
-        content: formData.content,
-        readTime: formData.readTime,
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      };
-      setBlogs([newBlog, ...blogs]);
-      alert("Blog post added successfully!");
+    try {
+      setSaving(true);
+      if (editingBlog) {
+        // Update existing blog
+        const response = await blogAPI.update(editingBlog.id, {
+          title: formData.title,
+          excerpt: formData.excerpt || null,
+          content: formData.content,
+          featuredImage: formData.featuredImage || null,
+          published: formData.published
+        });
+        setBlogs(blogs.map(b => b.id === editingBlog.id ? response.post : b));
+        alert("Blog post updated successfully!");
+      } else {
+        // Create new blog
+        const response = await blogAPI.create({
+          title: formData.title,
+          excerpt: formData.excerpt || undefined,
+          content: formData.content,
+          featuredImage: formData.featuredImage || undefined,
+          published: formData.published
+        });
+        setBlogs([response.post, ...blogs]);
+        alert("Blog post created successfully!");
+      }
+      setShowEditModal(false);
+    } catch (err: any) {
+      console.error('Error saving blog:', err);
+      alert(err.response?.data?.error || 'Failed to save blog post');
+    } finally {
+      setSaving(false);
     }
-    setShowEditModal(false);
   };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      setDeleting(true);
+      await blogAPI.delete(deleteConfirm);
+      setBlogs(blogs.filter(b => b.id !== deleteConfirm));
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      console.error('Error deleting blog:', err);
+      alert(err.response?.data?.error || 'Failed to delete blog post');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -150,6 +173,18 @@ export function AdminBlogPage() {
           </button>
         </div>
 
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
+
+        {!loading && blogs.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-slate-400">No blog posts found.</p>
+          </div>
+        )}
+
         <div className="space-y-4">
           {blogs.map((blog, index) => (
             <motion.div key={blog.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
@@ -166,20 +201,16 @@ export function AdminBlogPage() {
                 {/* Blog Content */}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-white text-lg lg:text-xl mb-1 lg:mb-2 line-clamp-2">{blog.title}</h3>
-                  <p className="text-slate-400 mb-2 lg:mb-3 text-sm lg:text-base line-clamp-2">{blog.excerpt}</p>
+                  {blog.excerpt && (
+                    <p className="text-slate-400 mb-2 lg:mb-3 text-sm lg:text-base line-clamp-2">{blog.excerpt}</p>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-xs lg:text-sm text-slate-500">
-                    <span>By {blog.author}</span>
+                    <span>{formatDate(blog.createdAt)}</span>
                     <span className="hidden lg:inline">•</span>
-                    <span>{blog.date}</span>
-                    <span className="hidden lg:inline">•</span>
-                    <span className="text-cyan-400">{blog.category}</span>
-                    {blog.readTime && (
-                      <>
-                        <span className="hidden lg:inline">•</span>
-                        <span>{blog.readTime}</span>
-                      </>
-                    )}
+                    <span className={blog.published ? "text-green-400" : "text-yellow-400"}>
+                      {blog.published ? "Published" : "Draft"}
+                    </span>
                   </div>
                 </div>
 
@@ -193,11 +224,27 @@ export function AdminBlogPage() {
                   </button>
                   {deleteConfirm === blog.id ? (
                     <>
-                      <button onClick={() => setBlogs(blogs.filter(b => b.id !== blog.id))} className="bg-red-500 hover:bg-red-600 text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm">Confirm</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm">Cancel</button>
+                      <button 
+                        onClick={handleDeleteConfirm}
+                        disabled={deleting}
+                        className="bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm flex items-center gap-2"
+                      >
+                        {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
+                      </button>
+                      <button 
+                        onClick={() => setDeleteConfirm(null)}
+                        disabled={deleting}
+                        className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 px-3 lg:px-4 py-2 lg:py-3 rounded-lg transition-all text-xs lg:text-sm"
+                      >
+                        Cancel
+                      </button>
                     </>
                   ) : (
-                    <button onClick={() => setDeleteConfirm(blog.id)} className="bg-red-500 hover:bg-red-600 text-white p-2 lg:p-3 rounded-lg transition-all">
+                    <button 
+                      onClick={() => setDeleteConfirm(blog.id)}
+                      disabled={deleting}
+                      className="bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white p-2 lg:p-3 rounded-lg transition-all"
+                    >
                       <Trash2 className="w-4 h-4 lg:w-5 lg:h-5" />
                     </button>
                   )}
@@ -226,32 +273,21 @@ export function AdminBlogPage() {
                   className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
                 <textarea
-                  placeholder="Excerpt *"
+                  placeholder="Excerpt (optional)"
                   value={formData.excerpt}
                   onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
                   className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full h-24 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
-                <input
-                  type="text"
-                  placeholder="Author *"
-                  value={formData.author}
-                  onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                  className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Category *"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
-                <input
-                  type="text"
-                  placeholder="Read Time (e.g., 5 min read)"
-                  value={formData.readTime}
-                  onChange={(e) => setFormData({ ...formData, readTime: e.target.value })}
-                  className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                />
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="published"
+                    checked={formData.published}
+                    onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
+                    className="w-5 h-5"
+                  />
+                  <label htmlFor="published" className="text-white">Published</label>
+                </div>
                 <textarea
                   placeholder="Full Content (HTML supported)"
                   value={formData.content}
@@ -262,7 +298,7 @@ export function AdminBlogPage() {
 
                 {/* Image Upload Section - Separate Field */}
                 <div className="space-y-2">
-                  <label className="text-white text-sm font-medium">Image *</label>
+                  <label className="text-white text-sm font-medium">Featured Image (optional)</label>
 
                   {/* Image Preview */}
                   {imagePreview && (
@@ -275,46 +311,38 @@ export function AdminBlogPage() {
                     </div>
                   )}
 
-                  {/* Image Upload Options */}
-                  <div className="flex gap-4">
-                    {/* File Upload */}
-                    <label className="flex-1 cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                      />
-                      <div className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-3 rounded-lg transition-all flex items-center justify-center gap-2 border border-slate-600">
-                        <Upload className="w-5 h-5" />
-                        Upload Image
-                      </div>
-                    </label>
-
-                    {/* URL Input */}
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        placeholder="Or enter image URL"
-                        value={formData.image}
-                        onChange={(e) => handleImageUrlChange(e.target.value)}
-                        className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                      />
-                    </div>
+                  {/* URL Input */}
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="Enter image URL"
+                      value={formData.featuredImage}
+                      onChange={(e) => handleImageUrlChange(e.target.value)}
+                      className="bg-slate-700 text-white px-4 py-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
                   </div>
-                  <p className="text-slate-400 text-xs">Upload an image file or paste an image URL. Image is separate from title/description.</p>
+                  <p className="text-slate-400 text-xs">Paste an image URL for the featured image.</p>
                 </div>
               </div>
               <div className="flex gap-4 mt-6">
                 <button
                   onClick={handleSave}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all"
+                  disabled={saving}
+                  className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2"
                 >
-                  Save
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
                 </button>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                  disabled={saving}
+                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg transition-all"
                 >
                   Cancel
                 </button>

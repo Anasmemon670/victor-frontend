@@ -11,13 +11,25 @@ export function OtherOffers() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const router = useRouter();
 
-  const offers = [
-    { id: 1, title: "Smart Accessories", discount: "30% OFF", price: "$49.99", image: "/images/products/usb-hub.png" },
-    { id: 2, title: "Tech Gadgets", discount: "25% OFF", price: "$79.99", image: "/images/products/charging-pad.png" },
-    { id: 3, title: "Home Automation", discount: "40% OFF", price: "$129.99", image: "/images/products/bluetooth-speaker.png" },
-    { id: 4, title: "Wearable Tech", discount: "35% OFF", price: "$89.99", image: "/images/products/smart-watch.png" },
-    { id: 5, title: "Audio Devices", discount: "20% OFF", price: "$59.99", image: "/images/products/bluetooth-speaker.png" },
-  ];
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        setLoading(true);
+        const response = await productsAPI.getAll({ limit: 5 });
+        // Filter products with discount > 20%
+        const discountedProducts = (response.products || []).filter((p: any) => p.discount && p.discount > 20);
+        setOffers(discountedProducts);
+      } catch (err) {
+        console.error('Error fetching offers:', err);
+        setOffers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -38,12 +50,16 @@ export function OtherOffers() {
   }, []);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % offers.length);
+    setCurrentSlide((prev) => (prev + 1) % Math.max(1, offers.length));
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + offers.length) % offers.length);
+    setCurrentSlide((prev) => (prev - 1 + Math.max(1, offers.length)) % Math.max(1, offers.length));
   };
+
+  if (offers.length === 0 && !loading) {
+    return null; // Don't show section if no offers
+  }
 
   return (
     <section id="other-offers" className="py-12 sm:py-16 md:py-24 bg-white">
@@ -98,49 +114,64 @@ export function OtherOffers() {
               animate={{ x: `-${currentSlide * (100 / 3)}%` }}
               transition={{ duration: 0.5 }}
             >
-              {offers.map((offer, index) => (
-                <motion.div
-                  key={offer.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={isVisible ? { opacity: 1, scale: 1 } : {}}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className="flex-shrink-0 w-full md:w-1/2 lg:w-1/3"
-                >
-                  <div className="bg-slate-50 rounded-xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500">
-                    {/* Image */}
-                    <div className="h-40 sm:h-48 overflow-hidden">
-                      <ImageWithFallback
-                        src={offer.image}
-                        alt={offer.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                    </div>
+              {loading ? (
+                <div className="text-center py-12 w-full">
+                  <p className="text-slate-600">Loading offers...</p>
+                </div>
+              ) : offers.length === 0 ? (
+                <div className="text-center py-12 w-full">
+                  <p className="text-slate-600">No special offers available.</p>
+                </div>
+              ) : (
+                offers.map((offer, index) => {
+                  const images = offer.images && Array.isArray(offer.images) ? offer.images : [];
+                  return (
+                    <motion.div
+                      key={offer.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={isVisible ? { opacity: 1, scale: 1 } : {}}
+                      transition={{ duration: 0.6, delay: index * 0.1 }}
+                      className="flex-shrink-0 w-full md:w-1/2 lg:w-1/3"
+                    >
+                      <div className="bg-slate-50 rounded-xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500">
+                        {/* Image */}
+                        <div className="h-40 sm:h-48 overflow-hidden">
+                          <ImageWithFallback
+                            src={images[0] || '/images/products/headphones.png'}
+                            alt={offer.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                        </div>
 
-                    {/* Content */}
-                    <div className="p-4 sm:p-6">
-                      <span className="bg-cyan-500 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-1 rounded-full inline-block mb-2 sm:mb-3">
-                        {offer.discount}
-                      </span>
-                      <h3 className="text-slate-900 text-lg sm:text-xl mb-2">{offer.title}</h3>
-                      <p className="text-slate-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                        Quality products at competitive rates
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-900 text-lg sm:text-xl">{offer.price}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/product/${offer.id}`);
-                          }}
-                          className="text-cyan-600 hover:text-cyan-700 transition-colors text-xs sm:text-sm"
-                        >
-                          Learn More →
-                        </button>
+                        {/* Content */}
+                        <div className="p-4 sm:p-6">
+                          {offer.discount && offer.discount > 0 && (
+                            <span className="bg-cyan-500 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-1 rounded-full inline-block mb-2 sm:mb-3">
+                              {offer.discount}% OFF
+                            </span>
+                          )}
+                          <h3 className="text-slate-900 text-lg sm:text-xl mb-2">{offer.title}</h3>
+                          <p className="text-slate-600 text-xs sm:text-sm mb-3 sm:mb-4">
+                            Quality products at competitive rates
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-900 text-lg sm:text-xl">${parseFloat(offer.price).toFixed(2)}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/product/${offer.slug || offer.id}`);
+                              }}
+                              className="text-cyan-600 hover:text-cyan-700 transition-colors text-xs sm:text-sm"
+                            >
+                              Learn More →
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                    </motion.div>
+                  );
+                })
+              )}
             </motion.div>
           </div>
 

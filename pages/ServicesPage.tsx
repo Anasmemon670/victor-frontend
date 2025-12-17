@@ -1,9 +1,34 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Zap, Rocket, Globe } from "lucide-react";
+import { Zap, Rocket, Globe, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { services } from "@/data/services";
+import { useState, useEffect } from "react";
+import { servicesAPI } from "@/lib/api";
+import { Cpu, Code, Globe as GlobeIcon, Shield, Smartphone, Headphones, Zap as ZapIcon, Rocket as RocketIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+interface Service {
+  id: string;
+  title: string;
+  description: string;
+  iconName?: string;
+  features?: string[] | null;
+  price?: string | null;
+  duration?: string | null;
+  active: boolean;
+}
+
+const iconMap: Record<string, LucideIcon> = {
+  Cpu,
+  Code,
+  Globe: GlobeIcon,
+  Shield,
+  Smartphone,
+  Headphones,
+  Zap: ZapIcon,
+  Rocket: RocketIcon
+};
 
 const stats = [
   { number: "500+", label: "Projects Completed" },
@@ -14,6 +39,28 @@ const stats = [
 
 export function ServicesPage() {
   const router = useRouter();
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await servicesAPI.getAll({ limit: 50, active: true });
+        setServices(response.services || []);
+      } catch (err: any) {
+        console.error('Error fetching services:', err);
+        setError(err.response?.data?.error || 'Failed to load services');
+        setServices([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchServices();
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -134,38 +181,73 @@ export function ServicesPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.map((service, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-slate-50 rounded-2xl p-8 hover:shadow-2xl transition-all group border border-slate-200 hover:border-cyan-500"
-              >
-                <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <service.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-slate-900 text-2xl mb-4 group-hover:text-cyan-600 transition-colors">
-                  {service.title}
-                </h3>
-                <p className="text-slate-600 mb-6 leading-relaxed">
-                  {service.description}
-                </p>
-                <ul className="space-y-2 mb-6">
-                  {service.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-slate-700">
-                      <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button className="text-cyan-600 hover:text-cyan-700 flex items-center gap-2 group-hover:gap-3 transition-all">
-                  Learn More
-                  <span>→</span>
-                </button>
-              </motion.div>
-            ))}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
+
+          {!loading && !error && services.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-slate-600 text-lg">No services available yet.</p>
+            </div>
+          )}
+
+          {!loading && !error && services.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {services.map((service, index) => {
+                const Icon = service.iconName ? iconMap[service.iconName] || Cpu : Cpu;
+                const features = service.features && Array.isArray(service.features) ? service.features : [];
+                
+                return (
+                  <motion.div
+                    key={service.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    className="bg-slate-50 rounded-2xl p-8 hover:shadow-2xl transition-all group border border-slate-200 hover:border-cyan-500"
+                  >
+                    <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                      <Icon className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-slate-900 text-2xl mb-4 group-hover:text-cyan-600 transition-colors">
+                      {service.title}
+                    </h3>
+                    <p className="text-slate-600 mb-6 leading-relaxed">
+                      {service.description}
+                    </p>
+                    {features.length > 0 && (
+                      <ul className="space-y-2 mb-6">
+                        {features.map((feature, i) => (
+                          <li key={i} className="flex items-center gap-2 text-slate-700">
+                            <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {(service.price || service.duration) && (
+                      <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
+                        {service.price && <span className="text-cyan-600 font-semibold">{service.price}</span>}
+                        {service.price && service.duration && <span>•</span>}
+                        {service.duration && <span>{service.duration}</span>}
+                      </div>
+                    )}
+                    <button className="text-cyan-600 hover:text-cyan-700 flex items-center gap-2 group-hover:gap-3 transition-all">
+                      Learn More
+                      <span>→</span>
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
           </div>
         </div>
       </div>

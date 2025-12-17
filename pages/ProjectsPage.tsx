@@ -1,19 +1,55 @@
 "use client";
 
 import { motion } from "motion/react";
-import { CheckCircle, Calendar, Users } from "lucide-react";
+import { CheckCircle, Calendar, Users, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { projects as completedProjects } from "@/data/projects";
+import { useState, useEffect } from "react";
+import { projectsAPI } from "@/lib/api";
+import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 
-const stats = [
-  { number: "6", label: "Projects Completed", icon: CheckCircle },
-  { number: "100%", label: "Success Rate", icon: CheckCircle },
-  { number: "50+", label: "Team Members", icon: Users },
-  { number: "2023-24", label: "Timeline", icon: Calendar },
-];
+interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  client?: string;
+  year?: string;
+  status: string;
+  images?: string[] | null;
+  features?: string[] | null;
+  createdAt: string;
+}
 
 export function ProjectsPage() {
   const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await projectsAPI.getAll({ limit: 50 });
+        setProjects(response.projects || []);
+      } catch (err: any) {
+        console.error('Error fetching projects:', err);
+        setError(err.response?.data?.error || 'Failed to load projects');
+        setProjects([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
+  const stats = [
+    { number: projects.length.toString(), label: "Projects Completed", icon: CheckCircle },
+    { number: "100%", label: "Success Rate", icon: CheckCircle },
+    { number: "50+", label: "Team Members", icon: Users },
+    { number: "2023-24", label: "Timeline", icon: Calendar },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -86,73 +122,107 @@ export function ProjectsPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {completedProjects.map((project, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group border border-slate-200 hover:border-cyan-500"
-              >
-                {/* Project Header with Gradient */}
-                <div className="h-48 relative overflow-hidden">
-                  <img
-                    src={project.image}
-                    alt={project.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-2 shadow-lg">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span className="text-sm text-slate-900 font-medium">{project.status}</span>
-                  </div>
-                  <div className="absolute bottom-4 left-4">
-                    <div className="w-12 h-12 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-                      <project.icon className="w-6 h-6 text-cyan-600" />
-                    </div>
-                  </div>
-                </div>
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+            </div>
+          )}
 
-                {/* Project Content */}
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-slate-900 text-2xl group-hover:text-cyan-600 transition-colors">
-                      {project.title}
-                    </h3>
-                  </div>
+          {error && !loading && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-red-600">{error}</p>
+            </div>
+          )}
 
-                  <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>{project.client}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{project.year}</span>
-                    </div>
-                  </div>
+          {!loading && !error && projects.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-slate-600 text-lg">No projects available yet.</p>
+            </div>
+          )}
 
-                  <p className="text-slate-600 mb-6 leading-relaxed">
-                    {project.description}
-                  </p>
-
-                  {/* Features */}
-                  <div className="mb-6">
-                    <p className="text-slate-700 text-sm mb-3">Key Deliverables:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {project.features.map((feature, i) => (
-                        <div key={i} className="flex items-center gap-2 text-slate-700 text-sm">
-                          <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
-                          {feature}
+          {!loading && !error && projects.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {projects.map((project, index) => {
+                const images = project.images && Array.isArray(project.images) ? project.images : [];
+                const features = project.features && Array.isArray(project.features) ? project.features : [];
+                
+                return (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all group border border-slate-200 hover:border-cyan-500"
+                  >
+                    {/* Project Header with Gradient */}
+                    <div className="h-48 relative overflow-hidden">
+                      {images[0] ? (
+                        <img
+                          src={images[0]}
+                          alt={project.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+                          <CheckCircle className="w-16 h-16 text-slate-400" />
                         </div>
-                      ))}
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-2 shadow-lg">
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                        <span className="text-sm text-slate-900 font-medium">{project.status}</span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+
+                    {/* Project Content */}
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-slate-900 text-2xl group-hover:text-cyan-600 transition-colors">
+                          {project.title}
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-slate-600 mb-4">
+                        {project.client && (
+                          <div className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            <span>{project.client}</span>
+                          </div>
+                        )}
+                        {project.year && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>{project.year}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {project.description && (
+                        <p className="text-slate-600 mb-6 leading-relaxed">
+                          {project.description}
+                        </p>
+                      )}
+
+                      {/* Features */}
+                      {features.length > 0 && (
+                        <div className="mb-6">
+                          <p className="text-slate-700 text-sm mb-3">Key Deliverables:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {features.map((feature, i) => (
+                              <div key={i} className="flex items-center gap-2 text-slate-700 text-sm">
+                                <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full"></span>
+                                {feature}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

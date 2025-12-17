@@ -1,11 +1,21 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState, useMemo } from "react";
-import { Star, Filter, ChevronDown } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Star, Filter, ChevronDown, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { products } from "@/data/products";
+import { productsAPI } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
+
+interface Product {
+  id: string;
+  title: string;
+  price: string;
+  discount?: number;
+  category?: string;
+  images?: string[] | null;
+  slug?: string;
+}
 
 export function ProductsPage() {
   const router = useRouter();
@@ -13,26 +23,51 @@ export function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
   const [showFilters, setShowFilters] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>(["All"]);
 
-  const categories = ["All", "Audio", "Wearables", "Accessories", "Gaming", "Smart Home", "Storage"];
+  // Fetch products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const params: any = { limit: 100 };
+        if (selectedCategory !== "All") {
+          params.category = selectedCategory;
+        }
+        const response = await productsAPI.getAll(params);
+        setProducts(response.products || []);
+        
+        // Extract unique categories
+        const uniqueCategories = new Set<string>(["All"]);
+        response.products?.forEach((p: Product) => {
+          if (p.category) uniqueCategories.add(p.category);
+        });
+        setCategories(Array.from(uniqueCategories));
+      } catch (err: any) {
+        console.error('Error fetching products:', err);
+        setError(err.response?.data?.error || 'Failed to load products');
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [selectedCategory]);
 
   const filteredAndSortedProducts = useMemo(() => {
-    // First filter by category
-    let filtered = selectedCategory === "All"
-      ? products
-      : products.filter(p => p.category === selectedCategory);
-
-    // Then sort based on sortBy
-    const sorted = [...filtered];
+    // Products are already filtered by category from API
+    const sorted = [...products];
     switch (sortBy) {
       case "price-low":
-        sorted.sort((a, b) => a.price - b.price);
+        sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
         break;
       case "price-high":
-        sorted.sort((a, b) => b.price - a.price);
-        break;
-      case "rating":
-        sorted.sort((a, b) => b.rating - a.rating);
+        sorted.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
         break;
       case "featured":
       default:
@@ -40,16 +75,19 @@ export function ProductsPage() {
         break;
     }
     return sorted;
-  }, [selectedCategory, sortBy]);
+  }, [products, sortBy]);
 
-  const handleAddToCart = (e: React.MouseEvent, product: typeof products[0]) => {
+  const handleAddToCart = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
+    const images = product.images && Array.isArray(product.images) ? product.images : [];
     addToCart({
-      id: product.id.toString(),
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      originalPrice: product.originalPrice
+      id: product.id,
+      name: product.title,
+      price: parseFloat(product.price),
+      image: images[0] || '/images/products/headphones.png',
+      originalPrice: product.discount 
+        ? parseFloat(product.price) / (1 - product.discount / 100)
+        : parseFloat(product.price)
     });
   };
 
@@ -119,26 +157,43 @@ export function ProductsPage() {
           </div>
         </div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         {/* Products Count */}
-        <p className="text-slate-600 mb-6">
-          Showing <span className="font-semibold">{filteredAndSortedProducts.length}</span> products
-        </p>
+        {!loading && !error && (
+          <p className="text-slate-600 mb-6">
+            Showing <span className="font-semibold">{filteredAndSortedProducts.length}</span> products
+          </p>
+        )}
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+        {!loading && !error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
           {filteredAndSortedProducts.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.05 }}
-              onClick={() => router.push(`/product/${product.id}`)}
+              onClick={() => router.push(`/product/${product.slug || product.id}`)}
               className="bg-white rounded-xl overflow-hidden hover:shadow-2xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500"
             >
               {/* Discount Badge */}
-              {product.discount && (
+              {product.discount && product.discount > 0 && (
                 <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm z-10">
-                  {product.discount}
+                  {product.discount}% OFF
                 </div>
               )}
 
@@ -146,47 +201,37 @@ export function ProductsPage() {
               <div
                 className="h-48 sm:h-56 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center group-hover:from-cyan-50 group-hover:to-blue-50 transition-all relative overflow-hidden"
               >
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
+                {product.images && Array.isArray(product.images) && product.images[0] ? (
+                  <img
+                    src={product.images[0]}
+                    alt={product.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="text-slate-400">No Image</div>
+                )}
               </div>
 
               {/* Product Info */}
               <div className="p-5">
-                <span className="text-cyan-600 text-sm">{product.category}</span>
+                {product.category && (
+                  <span className="text-cyan-600 text-sm">{product.category}</span>
+                )}
                 <h3
                   className="text-slate-900 text-lg mb-2 group-hover:text-cyan-600 transition-colors"
                 >
-                  {product.name}
+                  {product.title}
                 </h3>
-
-                {/* Rating */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${i < Math.floor(product.rating)
-                          ? "fill-yellow-400 text-yellow-400"
-                          : "text-slate-300"
-                          }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-slate-600 text-sm">
-                    {product.rating} ({product.reviews})
-                  </span>
-                </div>
 
                 {/* Price */}
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-slate-500 line-through text-sm">
-                    ${product.originalPrice}
-                  </span>
+                  {product.discount && product.discount > 0 && (
+                    <span className="text-slate-500 line-through text-sm">
+                      ${(parseFloat(product.price) / (1 - product.discount / 100)).toFixed(2)}
+                    </span>
+                  )}
                   <span className="text-slate-900 text-2xl">
-                    ${product.price}
+                    ${parseFloat(product.price).toFixed(2)}
                   </span>
                 </div>
 
@@ -200,7 +245,15 @@ export function ProductsPage() {
               </div>
             </motion.div>
           ))}
-        </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && filteredAndSortedProducts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-slate-600">No products found.</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,7 +5,8 @@ import { useState, useEffect, useRef } from "react";
 import React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { ArrowLeft, Upload, Package, X } from "lucide-react";
+import { ArrowLeft, Upload, Package, X, Loader2 } from "lucide-react";
+import { productsAPI } from "@/lib/api";
 
 // Product type definition
 interface Product {
@@ -32,6 +33,8 @@ export function AdminAddProductPage() {
     category: "",
     description: "",
     discount: "",
+    hsCode: "",
+    stock: "0",
     onOffer: false,
     bigOffer: false,
     productType: "internal",
@@ -43,58 +46,89 @@ export function AdminAddProductPage() {
 
   const [images, setImages] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load product data when editing
   useEffect(() => {
-    if (isEdit && id && typeof window !== 'undefined') {
-      let existingProducts: Product[] = JSON.parse(localStorage.getItem('adminProducts') || '[]');
-      
-      // If no products in localStorage, initialize with empty array (products should be added via AdminProductsPage)
-      if (existingProducts.length === 0) {
-        console.warn('No products found in localStorage. Please add products first.');
-        return;
-      }
-      
-      const productId = parseInt(id as string);
-      const product = existingProducts.find((p: Product) => p.id === productId);
-      
-      if (product) {
-        setFormData({
-          name: product.name || "",
-          price: product.price?.toString() || "",
-          category: product.category || "",
-          description: product.description || "",
-          discount: product.discount?.toString() || "0",
-          onOffer: product.onOffer || false,
-          bigOffer: product.bigOffer || false,
-          productType: "internal",
-          externalUrl: "",
-          supplier: "no-supplier",
-          supplierProductId: "",
-          autoOrder: false
-        });
-        if (product.image) {
-          setImages([product.image]);
+    const loadProduct = async () => {
+      if (isEdit && id) {
+        try {
+          setLoading(true);
+          const response = await productsAPI.getById(id);
+            const product = response.product;
+          
+          if (product) {
+            setFormData({
+              name: product.title || "",
+              price: product.price || "",
+              category: product.category || "",
+              description: product.description || "",
+              discount: product.discount?.toString() || "0",
+              hsCode: product.hsCode || "",
+              stock: product.stock?.toString() || "0",
+              onOffer: false,
+              bigOffer: product.featured || false,
+              productType: "internal",
+              externalUrl: "",
+              supplier: product.supplierId || "no-supplier",
+              supplierProductId: "",
+              autoOrder: false
+            });
+            if (product.images && Array.isArray(product.images) && product.images.length > 0) {
+              setImages(product.images);
+            }
+          } else {
+            alert(`Product not found. Redirecting to products page.`);
+            router.push('/admin/products');
+          }
+        } catch (err: any) {
+          console.error('Error loading product:', err);
+          alert(err.response?.data?.error || 'Failed to load product');
+          router.push('/admin/products');
+        } finally {
+          setLoading(false);
         }
-      } else {
-        console.error(`Product with ID ${productId} not found`);
-        alert(`Product with ID ${productId} not found. Redirecting to products page.`);
-        router.push('/admin/products');
       }
-    }
+    };
+
+    loadProduct();
   }, [isEdit, id, router]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) newErrors.name = "Product name is required";
-    if (!formData.price || parseFloat(formData.price) <= 0) newErrors.price = "Valid price is required";
-    if (!formData.category.trim()) newErrors.category = "Category is required";
-    if (!formData.description.trim()) newErrors.description = "Description is required";
+    if (!formData.name.trim()) {
+      newErrors.name = "Product name is required";
+    }
+    
+    const priceValue = parseFloat(formData.price);
+    if (!formData.price || isNaN(priceValue) || priceValue <= 0) {
+      newErrors.price = "Valid price is required (must be a positive number)";
+    }
+    
+    if (!formData.category.trim()) {
+      newErrors.category = "Category is required";
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required";
+    }
+    
+    if (!formData.hsCode.trim()) {
+      newErrors.hsCode = "HS Code is required";
+    }
+    
+    const stockValue = parseInt(formData.stock);
+    if (formData.stock && (isNaN(stockValue) || stockValue < 0)) {
+      newErrors.stock = "Stock must be a non-negative number";
+    }
+    
     if (formData.productType === "external" && !formData.externalUrl.trim()) {
       newErrors.externalUrl = "External URL is required for external products";
     }
+    
     if (formData.supplier !== "no-supplier" && !formData.supplierProductId.trim()) {
       newErrors.supplierProductId = "Supplier Product ID is required";
     }
@@ -103,81 +137,142 @@ export function AdminAddProductPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    // Get existing products from localStorage
-    const existingProducts: Product[] = typeof window !== 'undefined' 
-      ? JSON.parse(localStorage.getItem('adminProducts') || '[]')
-      : [];
+    // Declare productData outside try block so it's accessible in catch
+    let productData: any = null;
 
-    if (isEdit && id) {
-      const productId = parseInt(id as string);
-      // Find existing product to preserve its image if no new images added
-      const existingProduct = existingProducts.find((p: Product) => p.id === productId);
-      
-      if (!existingProduct) {
-        alert(`Product with ID ${productId} not found. Please try again.`);
-        router.push('/admin/products');
+    try {
+      setSaving(true);
+
+      // Prepare product data for API
+      // Only include supplierId if it's a valid UUID (not "no-supplier" or placeholder like "supplier-1")
+      const isValidSupplierId = formData.supplier && 
+        formData.supplier !== "no-supplier" && 
+        !formData.supplier.startsWith("supplier-") &&
+        formData.supplier.length > 10; // Basic UUID length check
+
+      // Validate numeric fields
+      const price = parseFloat(formData.price);
+      if (isNaN(price) || price <= 0) {
+        alert("Please enter a valid price");
+        setSaving(false);
         return;
       }
-      
-      // Get image URL (use first image if available, otherwise use existing or generate one)
-      const productImage = images.length > 0 
-        ? images[0] 
-        : (existingProduct?.image || `https://source.unsplash.com/400x300/?product,tech,${formData.name}`);
 
-      // Update existing product
-      const updatedProducts = existingProducts.map((p: Product) => 
-        p.id === productId
-          ? {
-              ...p,
-              name: formData.name,
-              price: parseFloat(formData.price),
-              category: formData.category,
-              description: formData.description,
-              discount: formData.discount ? parseInt(formData.discount) : 0,
-              onOffer: formData.onOffer,
-              bigOffer: formData.bigOffer,
-              image: productImage
-            }
-          : p
-      );
-      localStorage.setItem('adminProducts', JSON.stringify(updatedProducts));
-      alert("Product updated successfully!");
-    } else {
-      // Add new product
-      const newId = existingProducts.length > 0 
-        ? Math.max(...existingProducts.map((p: Product) => p.id)) + 1 
-        : 1;
-      
-      // Get image URL for new product
-      const productImage = images.length > 0 
-        ? images[0] 
-        : `https://source.unsplash.com/400x300/?product,tech,${formData.name}`;
-      
-      const newProduct = {
-        id: newId,
-        name: formData.name,
-        price: parseFloat(formData.price),
-        category: formData.category,
-        description: formData.description,
-        discount: formData.discount ? parseInt(formData.discount) : 0,
-        onOffer: formData.onOffer,
-        bigOffer: formData.bigOffer,
-        image: productImage
+      const discount = formData.discount ? parseInt(formData.discount) : 0;
+      if (isNaN(discount) || discount < 0 || discount > 100) {
+        alert("Discount must be between 0 and 100");
+        setSaving(false);
+        return;
+      }
+
+      const stock = parseInt(formData.stock) || 0;
+      if (isNaN(stock) || stock < 0) {
+        alert("Stock must be a non-negative number");
+        setSaving(false);
+        return;
+      }
+
+      // Process images - limit base64 size or convert to URLs if needed
+      let processedImages: string[] | undefined = undefined;
+      if (images.length > 0) {
+        processedImages = images.map(img => {
+          // If image is base64 and too large (>1MB), warn user
+          if (img.startsWith('data:image') && img.length > 1000000) {
+            console.warn('Large base64 image detected, consider using image URLs instead');
+          }
+          return img;
+        });
+      }
+
+      productData = {
+        title: formData.name.trim(),
+        price: price,
+        description: formData.description.trim(),
+        category: formData.category.trim(),
+        discount: discount > 0 ? discount : undefined,
+        featured: formData.bigOffer || false,
+        images: processedImages,
+        hsCode: formData.hsCode.trim(),
+        stock: stock,
       };
 
-      const updatedProducts = [...existingProducts, newProduct];
-      localStorage.setItem('adminProducts', JSON.stringify(updatedProducts));
-      alert("Product added successfully!");
-    }
+      // Only add supplierId if it's valid
+      if (isValidSupplierId) {
+        productData.supplierId = formData.supplier;
+      }
 
-    router.push("/admin/products");
+      console.log('Sending product data to API:', JSON.stringify(productData, null, 2));
+
+      if (isEdit && id) {
+        // Update existing product
+        await productsAPI.update(id, {
+          title: productData.title,
+          price: productData.price,
+          description: productData.description,
+          category: productData.category,
+          discount: productData.discount,
+          featured: productData.featured,
+          images: productData.images,
+          hsCode: productData.hsCode,
+          stock: productData.stock,
+          supplierId: productData.supplierId || null,
+        });
+        alert("Product updated successfully!");
+      } else {
+        // Create new product
+        await productsAPI.create(productData);
+        alert("Product added successfully!");
+      }
+
+      router.push("/admin/products");
+    } catch (err: any) {
+      console.error('Error saving product:', err);
+      console.error('Full error response:', err.response?.data);
+      if (productData) {
+        console.error('Request data sent:', productData);
+      }
+      
+      let errorMessage = 'Failed to save product. Please try again.';
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        if (errorData.details) {
+          // If it's a validation error array, format it nicely
+          if (Array.isArray(errorData.details)) {
+            const validationErrors = errorData.details.map((e: any) => {
+              const field = e.path?.join('.') || 'unknown';
+              return `${field}: ${e.message}`;
+            }).join('\n');
+            errorMessage = `Validation errors:\n${validationErrors}`;
+          } else if (typeof errorData.details === 'string') {
+            // Extract the actual error message from Prisma error
+            const prismaErrorMatch = errorData.details.match(/Invalid.*?`(\w+)`/);
+            if (prismaErrorMatch) {
+              errorMessage = `Database error: Invalid field '${prismaErrorMatch[1]}'. Please check your input.`;
+            } else {
+              errorMessage = `Error: ${errorData.details}`;
+            }
+          } else {
+            errorMessage = `Error: ${JSON.stringify(errorData.details)}`;
+          }
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleImageAdd = () => {
@@ -226,6 +321,16 @@ export function AdminAddProductPage() {
     console.log("Image removed at index:", index);
   };
 
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        </div>
+      </AdminLayout>
+    );
+  }
+
   return (
     <AdminLayout>
       <div className="max-w-5xl">
@@ -248,7 +353,7 @@ export function AdminAddProductPage() {
           {/* Basic Information */}
           <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
             <h2 className="text-white text-xl mb-4">Basic Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="text-slate-300 text-sm mb-2 block">Product Name *</label>
                 <input
@@ -292,6 +397,28 @@ export function AdminAddProductPage() {
                   placeholder="0"
                   min="0"
                   max="100"
+                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">HS Code *</label>
+                <input
+                  type="text"
+                  value={formData.hsCode}
+                  onChange={(e) => setFormData({ ...formData, hsCode: e.target.value })}
+                  placeholder="e.g., 8471.30"
+                  className={`w-full px-4 py-3 bg-slate-700 border ${errors.hsCode ? 'border-red-500' : 'border-slate-600'} text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500`}
+                />
+                {errors.hsCode && <p className="text-red-400 text-xs mt-1">{errors.hsCode}</p>}
+              </div>
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">Stock Quantity</label>
+                <input
+                  type="number"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  placeholder="0"
+                  min="0"
                   className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
@@ -474,9 +601,17 @@ export function AdminAddProductPage() {
             </button>
             <button
               type="submit"
-              className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg transition-all shadow-lg"
+              disabled={saving || loading}
+              className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white py-3 rounded-lg transition-all shadow-lg flex items-center justify-center gap-2"
             >
-              {isEdit ? "Update Product" : "Add Product"}
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isEdit ? "Updating..." : "Adding..."}
+                </>
+              ) : (
+                isEdit ? "Update Product" : "Add Product"
+              )}
             </button>
           </div>
         </form>

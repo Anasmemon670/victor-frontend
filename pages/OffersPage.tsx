@@ -3,25 +3,56 @@
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Star } from "lucide-react";
+import { Star, Loader2 } from "lucide-react";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 import { useCart } from "../context/CartContext";
-import { allOffers, bigOffers, otherOffers } from "@/data/offers";
+import { productsAPI } from "@/lib/api";
+
+interface Offer {
+  id: string;
+  title: string;
+  price: string;
+  discount?: number;
+  images?: string[] | null;
+  slug?: string;
+}
 
 export function OffersPage() {
   const router = useRouter();
   const { addToCart } = useCart();
   const [selectedTab, setSelectedTab] = useState<"all" | "big" | "other">("all");
-  const [displayedOffers, setDisplayedOffers] = useState(allOffers);
+  const [displayedOffers, setDisplayedOffers] = useState<Offer[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (selectedTab === "all") {
-      setDisplayedOffers(allOffers);
-    } else if (selectedTab === "big") {
-      setDisplayedOffers(bigOffers);
-    } else if (selectedTab === "other") {
-      setDisplayedOffers(otherOffers);
-    }
+    const fetchOffers = async () => {
+      try {
+        setLoading(true);
+        const response = await productsAPI.getAll({ limit: 100 });
+        const allProducts = response.products || [];
+        
+        let filtered: Offer[] = [];
+        if (selectedTab === "all") {
+          // All products with any discount
+          filtered = allProducts.filter((p: Offer) => p.discount && p.discount > 0);
+        } else if (selectedTab === "big") {
+          // Products with discount >= 25%
+          filtered = allProducts.filter((p: Offer) => p.discount && p.discount >= 25);
+        } else {
+          // Products with discount < 25%
+          filtered = allProducts.filter((p: Offer) => p.discount && p.discount > 0 && p.discount < 25);
+        }
+        
+        setDisplayedOffers(filtered);
+      } catch (err) {
+        console.error('Error fetching offers:', err);
+        setDisplayedOffers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOffers();
   }, [selectedTab]);
 
   return (
@@ -66,7 +97,7 @@ export function OffersPage() {
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              All Offers ({allOffers.length})
+              All Offers ({displayedOffers.length})
             </button>
             <button
               onClick={() => setSelectedTab("big")}
@@ -76,7 +107,7 @@ export function OffersPage() {
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              Big Offers ({bigOffers.length})
+              Big Offers
             </button>
             <button
               onClick={() => setSelectedTab("other")}
@@ -86,7 +117,7 @@ export function OffersPage() {
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              Other Offers ({otherOffers.length})
+              Other Offers
             </button>
           </div>
         </div>
@@ -95,83 +126,86 @@ export function OffersPage() {
       {/* Offers Grid */}
       <div className="py-16 md:py-24">
         <div className="container mx-auto px-4">
-          {displayedOffers.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-4" />
+              <p className="text-slate-600">Loading offers...</p>
+            </div>
+          ) : displayedOffers.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {displayedOffers.map((product, index) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.05 }}
-                  className="bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all group border border-slate-200"
-                >
-                  {/* Product Image with Discount Badge */}
-                  <div
-                    onClick={() => router.push(`/product/${product.id}`)}
-                    className="relative h-56 overflow-hidden cursor-pointer"
+              {displayedOffers.map((product, index) => {
+                const images = product.images && Array.isArray(product.images) ? product.images : [];
+                const price = parseFloat(product.price);
+                const originalPrice = product.discount
+                  ? price / (1 - product.discount / 100)
+                  : price;
+
+                return (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.05 }}
+                    className="bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all group border border-slate-200"
                   >
-                    <ImageWithFallback
-                      src={product.imageQuery}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    {/* Discount Badge */}
-                    <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm shadow-lg">
-                      {product.discount}
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-5">
-                    <h3
-                      onClick={() => router.push(`/product/${product.id}`)}
-                      className="text-slate-900 text-lg mb-2 cursor-pointer hover:text-cyan-600 transition-colors"
+                    {/* Product Image with Discount Badge */}
+                    <div
+                      onClick={() => router.push(`/product/${product.slug || product.id}`)}
+                      className="relative h-56 overflow-hidden cursor-pointer"
                     >
-                      {product.name}
-                    </h3>
-
-                    {/* Rating */}
-                    <div className="flex items-center gap-1 mb-3">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${i < product.rating
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-slate-300"
-                            }`}
-                        />
-                      ))}
-                      <span className="text-slate-500 text-sm ml-1">({product.reviews})</span>
+                      <ImageWithFallback
+                        src={images[0] || '/images/products/headphones.png'}
+                        alt={product.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      {/* Discount Badge */}
+                      {product.discount && product.discount > 0 && (
+                        <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm shadow-lg">
+                          {product.discount}% OFF
+                        </div>
+                      )}
                     </div>
 
-                    {/* Price */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-slate-900 text-2xl font-semibold">${product.price}</span>
-                      <span className="text-slate-500 line-through text-sm">
-                        ${product.originalPrice}
-                      </span>
-                    </div>
+                    {/* Content */}
+                    <div className="p-5">
+                      <h3
+                        onClick={() => router.push(`/product/${product.slug || product.id}`)}
+                        className="text-slate-900 text-lg mb-2 cursor-pointer hover:text-cyan-600 transition-colors"
+                      >
+                        {product.title}
+                      </h3>
 
-                    {/* Add to Cart Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart({
-                          id: product.id.toString(),
-                          name: product.name,
-                          price: product.price,
-                          originalPrice: product.originalPrice,
-                          image: product.imageQuery
-                        });
-                      }}
-                      className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-cyan-500/50"
-                    >
-                      Add to Cart
-                      <span>+</span>
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                      {/* Price */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className="text-slate-900 text-2xl font-semibold">${price.toFixed(2)}</span>
+                        {product.discount && product.discount > 0 && (
+                          <span className="text-slate-500 line-through text-sm">
+                            ${originalPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Add to Cart Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToCart({
+                            id: product.id,
+                            name: product.title,
+                            price: price,
+                            originalPrice: originalPrice,
+                            image: images[0] || '/images/products/headphones.png'
+                          });
+                        }}
+                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-cyan-500/50"
+                      >
+                        Add to Cart
+                        <span>+</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-20">

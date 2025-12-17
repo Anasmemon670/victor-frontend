@@ -1,73 +1,62 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Mail, User, Calendar, X } from "lucide-react";
+import { Mail, User, Calendar, X, Loader2 } from "lucide-react";
+import { contactAPI } from "@/lib/api";
 
 interface ContactMessage {
   id: string;
   name: string;
   email: string;
-  subject: string;
+  subject?: string | null;
   message: string;
-  date: string;
-  read: boolean;
+  isRead: boolean;
+  archived: boolean;
+  createdAt: string;
 }
 
-const initialMessages: ContactMessage[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@example.com",
-    subject: "Product Inquiry",
-    message: "I'm interested in the MacBook Pro M3. Can you provide more details about the warranty and shipping options?",
-    date: "2025-12-05",
-    read: false
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    subject: "Order Issue",
-    message: "My order #ORD-002 hasn't arrived yet. It's been 10 days since I placed the order. Can you help me track it?",
-    date: "2025-12-04",
-    read: true
-  },
-  {
-    id: "3",
-    name: "Bob Johnson",
-    email: "bob@example.com",
-    subject: "Partnership Opportunity",
-    message: "We are a technology distributor interested in partnering with your company. Would you be open to discussing potential collaboration?",
-    date: "2025-12-03",
-    read: false
-  },
-  {
-    id: "4",
-    name: "Alice Williams",
-    email: "alice@example.com",
-    subject: "Technical Support",
-    message: "I'm having trouble with the Sony headphones I purchased. The noise cancelling feature doesn't seem to be working properly.",
-    date: "2025-12-02",
-    read: true
-  }
-];
-
 export function AdminContactMessagesPage() {
-  const [messages, setMessages] = useState(initialMessages);
-  const [archivedMessages, setArchivedMessages] = useState<ContactMessage[]>([]);
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
 
-  const handleMessageClick = (message: ContactMessage) => {
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await contactAPI.getAll({ limit: 100 });
+        setMessages(response.messages || []);
+      } catch (err: any) {
+        console.error('Error fetching contact messages:', err);
+        setError(err.response?.data?.error || 'Failed to load messages');
+        setMessages([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, []);
+
+  const handleMessageClick = async (message: ContactMessage) => {
     setSelectedMessage(message);
-    if (activeTab === "active") {
-      setMessages(messages.map(m =>
-        m.id === message.id ? { ...m, read: true } : m
-      ));
+    if (activeTab === "active" && !message.isRead) {
+      try {
+        await contactAPI.update(message.id, { isRead: true });
+        setMessages(messages.map(m =>
+          m.id === message.id ? { ...m, isRead: true } : m
+        ));
+      } catch (err) {
+        console.error('Error marking message as read:', err);
+      }
     }
   };
 
@@ -88,36 +77,76 @@ export function AdminContactMessagesPage() {
     }
   };
 
-  const handleArchive = () => {
-    if (selectedMessage) {
-      // Move to archived
-      setArchivedMessages([...archivedMessages, { ...selectedMessage, read: true }]);
-      setMessages(messages.filter(m => m.id !== selectedMessage.id));
+  const handleArchive = async () => {
+    if (!selectedMessage) return;
+
+    try {
+      setUpdating(true);
+      await contactAPI.update(selectedMessage.id, { archived: true });
+      setMessages(messages.map(m =>
+        m.id === selectedMessage.id ? { ...m, archived: true } : m
+      ));
       setSelectedMessage(null);
       alert("Message archived successfully!");
+    } catch (err: any) {
+      console.error('Error archiving message:', err);
+      alert(err.response?.data?.error || 'Failed to archive message');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const handleRestore = () => {
-    if (selectedMessage) {
-      // Move back to active
-      setMessages([...messages, selectedMessage]);
-      setArchivedMessages(archivedMessages.filter(m => m.id !== selectedMessage.id));
+  const handleRestore = async () => {
+    if (!selectedMessage) return;
+
+    try {
+      setUpdating(true);
+      await contactAPI.update(selectedMessage.id, { archived: false });
+      setMessages(messages.map(m =>
+        m.id === selectedMessage.id ? { ...m, archived: false } : m
+      ));
       setSelectedMessage(null);
       alert("Message restored successfully!");
+    } catch (err: any) {
+      console.error('Error restoring message:', err);
+      alert(err.response?.data?.error || 'Failed to restore message');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const handleDeletePermanently = () => {
-    if (selectedMessage && window.confirm("Are you sure you want to permanently delete this message?")) {
-      setArchivedMessages(archivedMessages.filter(m => m.id !== selectedMessage.id));
+  const handleDeletePermanently = async () => {
+    if (!selectedMessage || !window.confirm("Are you sure you want to permanently delete this message?")) return;
+
+    try {
+      setUpdating(true);
+      await contactAPI.delete(selectedMessage.id);
+      setMessages(messages.filter(m => m.id !== selectedMessage.id));
       setSelectedMessage(null);
       alert("Message deleted permanently!");
+    } catch (err: any) {
+      console.error('Error deleting message:', err);
+      alert(err.response?.data?.error || 'Failed to delete message');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const unreadCount = messages.filter(m => !m.read).length;
-  const currentMessages = activeTab === "active" ? messages : archivedMessages;
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const unreadCount = messages.filter(m => !m.isRead && !m.archived).length;
+  const currentMessages = messages.filter(m => 
+    activeTab === "active" ? !m.archived : m.archived
+  );
 
   return (
     <AdminLayout>
@@ -128,6 +157,12 @@ export function AdminContactMessagesPage() {
             {unreadCount > 0 ? `${unreadCount} unread message${unreadCount > 1 ? 's' : ''}` : 'All messages read'}
           </p>
         </div>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-4 mb-6">
@@ -141,7 +176,7 @@ export function AdminContactMessagesPage() {
               : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
           >
-            Active Messages ({messages.length})
+            Active Messages ({messages.filter(m => !m.archived).length})
           </button>
           <button
             onClick={() => {
@@ -153,59 +188,64 @@ export function AdminContactMessagesPage() {
               : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
           >
-            Archived ({archivedMessages.length})
+            Archived ({messages.filter(m => m.archived).length})
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Messages List */}
-          <div className="space-y-4">
-            {currentMessages.length === 0 ? (
-              <div className="bg-slate-800 rounded-xl p-12 text-center border border-slate-700">
-                <Mail className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">
-                  {activeTab === "active" ? "No active messages" : "No archived messages"}
-                </p>
-              </div>
-            ) : (
-              currentMessages.map((message, index) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  onClick={() => handleMessageClick(message)}
-                  className={`bg-slate-800 rounded-xl p-5 cursor-pointer hover:bg-slate-700 transition-all border ${!message.read ? 'border-l-4 border-l-cyan-500 border-t-slate-700 border-r-slate-700 border-b-slate-700' : 'border-slate-700'
-                    } ${selectedMessage?.id === message.id ? 'ring-2 ring-cyan-500' : ''}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-white">{message.name}</h3>
-                        <p className="text-slate-400 text-sm">{message.email}</p>
-                      </div>
-                    </div>
-                    {!message.read && (
-                      <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full">
-                        New
-                      </span>
-                    )}
-                  </div>
-
-                  <h4 className="text-white mb-2">{message.subject}</h4>
-                  <p className="text-slate-400 text-sm line-clamp-2">{message.message}</p>
-
-                  <div className="flex items-center gap-2 mt-3 text-slate-500 text-sm">
-                    <Calendar className="w-4 h-4" />
-                    {message.date}
-                  </div>
-                </motion.div>
-              ))
-            )}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Messages List */}
+            <div className="space-y-4">
+              {currentMessages.length === 0 ? (
+                <div className="bg-slate-800 rounded-xl p-12 text-center border border-slate-700">
+                  <Mail className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-400">
+                    {activeTab === "active" ? "No active messages" : "No archived messages"}
+                  </p>
+                </div>
+              ) : (
+                currentMessages.map((message, index) => (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    onClick={() => handleMessageClick(message)}
+                    className={`bg-slate-800 rounded-xl p-5 cursor-pointer hover:bg-slate-700 transition-all border ${!message.isRead ? 'border-l-4 border-l-cyan-500 border-t-slate-700 border-r-slate-700 border-b-slate-700' : 'border-slate-700'
+                      } ${selectedMessage?.id === message.id ? 'ring-2 ring-cyan-500' : ''}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-white">{message.name}</h3>
+                          <p className="text-slate-400 text-sm">{message.email}</p>
+                        </div>
+                      </div>
+                      {!message.isRead && (
+                        <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full">
+                          New
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="text-white mb-2">{message.subject || 'No subject'}</h4>
+                    <p className="text-slate-400 text-sm line-clamp-2">{message.message}</p>
+
+                    <div className="flex items-center gap-2 mt-3 text-slate-500 text-sm">
+                      <Calendar className="w-4 h-4" />
+                      {formatDate(message.createdAt)}
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
 
           {/* Message Detail */}
           <div className="lg:sticky lg:top-24 h-fit">
@@ -251,7 +291,7 @@ export function AdminContactMessagesPage() {
 
                   <div className="flex items-center gap-2 text-slate-400 text-sm pt-4 border-t border-slate-700">
                     <Calendar className="w-4 h-4" />
-                    Received on {selectedMessage.date}
+                    Received on {formatDate(selectedMessage.createdAt)}
                   </div>
                 </div>
 
@@ -260,30 +300,34 @@ export function AdminContactMessagesPage() {
                     <>
                       <button
                         onClick={handleReply}
-                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg transition-all"
+                        disabled={updating}
+                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white py-3 rounded-lg transition-all"
                       >
                         Reply
                       </button>
                       <button
                         onClick={handleArchive}
-                        className="px-6 bg-slate-700 hover:bg-slate-600 text-slate-300 py-3 rounded-lg transition-all"
+                        disabled={updating}
+                        className="px-6 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 py-3 rounded-lg transition-all"
                       >
-                        Archive
+                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Archive'}
                       </button>
                     </>
                   ) : (
                     <>
                       <button
                         onClick={handleRestore}
-                        className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg transition-all"
+                        disabled={updating}
+                        className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2"
                       >
-                        Restore
+                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Restore'}
                       </button>
                       <button
                         onClick={handleDeletePermanently}
-                        className="px-6 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg transition-all"
+                        disabled={updating}
+                        className="px-6 bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2"
                       >
-                        Delete
+                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
                       </button>
                     </>
                   )}
@@ -296,7 +340,7 @@ export function AdminContactMessagesPage() {
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Reply Modal */}

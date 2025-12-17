@@ -4,101 +4,85 @@ import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Edit, Trash2, Plus, ChevronDown, X, AlertTriangle } from "lucide-react";
-import { products as sharedProducts } from "@/data/products";
+import { Edit, Trash2, Plus, ChevronDown, X, AlertTriangle, Loader2 } from "lucide-react";
+import { productsAPI } from "@/lib/api";
 
 // Product type definition
 interface Product {
-  id: number;
-  name: string;
-  price: number;
-  category: string;
-  description: string;
-  discount: number;
-  onOffer: boolean;
-  bigOffer: boolean;
-  image: string;
+  id: string;
+  title: string;
+  price: string;
+  category?: string;
+  description?: string;
+  discount?: number;
+  stock: number;
+  images?: string[] | null;
+  featured?: boolean;
+  slug?: string;
 }
-
-// Convert shared products to admin format
-const convertToAdminFormat = (product: typeof sharedProducts[0]): Product => {
-  // Extract discount percentage from string like "25% OFF" or calculate from prices
-  let discountPercent = 0;
-  if (product.discount) {
-    const match = product.discount.match(/(\d+)%/);
-    if (match) {
-      discountPercent = parseInt(match[1]);
-    } else if (product.originalPrice && product.price) {
-      discountPercent = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
-    }
-  }
-
-  const hasDiscount = discountPercent > 0;
-  const isBigOffer = discountPercent >= 25; // Consider 25%+ as big offer
-
-  return {
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    category: product.category,
-    description: product.description,
-    discount: discountPercent,
-    onOffer: hasDiscount,
-    bigOffer: isBigOffer,
-    image: product.image
-  };
-};
-
-// Initialize with shared products converted to admin format
-const initialProducts = sharedProducts.map(convertToAdminFormat);
 
 export function AdminProductsPage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("featured");
-  const categories = ["All", "Audio", "Wearables", "Accessories", "Gaming", "Smart Home", "Storage"];
-
-  const [products, setProducts] = useState<Product[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('adminProducts');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved) as Product[];
-          // If saved products exist and match the count, use them; otherwise use shared products
-          if (parsed && parsed.length === sharedProducts.length) {
-            return parsed;
-          }
-        } catch (e) {
-          // If parsing fails, use shared products
-        }
-      }
-      // Initialize with shared products (12 products)
-      localStorage.setItem('adminProducts', JSON.stringify(initialProducts));
-      return initialProducts;
-    }
-    return initialProducts;
-  });
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>(["All"]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // Save to localStorage whenever products change
+  // Fetch products
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('adminProducts', JSON.stringify(products));
-    }
-  }, [products]);
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const params: any = { limit: 100 };
+        if (selectedCategory !== "All") {
+          params.category = selectedCategory;
+        }
+        const response = await productsAPI.getAll(params);
+        setProducts(response.products || []);
+        
+        // Extract unique categories
+        const uniqueCategories = new Set<string>(["All"]);
+        response.products?.forEach((p: Product) => {
+          if (p.category) uniqueCategories.add(p.category);
+        });
+        setCategories(Array.from(uniqueCategories));
+      } catch (err: any) {
+        console.error('Error fetching products:', err);
+        setError(err.response?.data?.error || 'Failed to load products');
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, [selectedCategory]);
 
   const handleDeleteClick = (product: Product) => {
     setProductToDelete(product);
     setDeleteConfirm(product.id);
   };
 
-  const handleDeleteConfirm = () => {
-    if (productToDelete) {
-      const updatedProducts = products.filter((p: Product) => p.id !== productToDelete.id);
-      setProducts(updatedProducts);
+  const handleDeleteConfirm = async () => {
+    if (!productToDelete) return;
+
+    try {
+      setDeleting(true);
+      await productsAPI.delete(productToDelete.id);
+      setProducts(products.filter(p => p.id !== productToDelete.id));
       setDeleteConfirm(null);
       setProductToDelete(null);
+    } catch (err: any) {
+      console.error('Error deleting product:', err);
+      alert(err.response?.data?.error || 'Failed to delete product');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -107,26 +91,20 @@ export function AdminProductsPage() {
     setProductToDelete(null);
   };
 
-  const handleEdit = (id: number) => {
-    console.log("Editing product ID:", id);
+  const handleEdit = (id: string) => {
     router.push(`/admin/products/edit/${id}`);
   };
 
   // Filter and sort products
   const filteredAndSortedProducts = useMemo(() => {
-    // First filter by category
-    let filtered = selectedCategory === "All"
-      ? products
-      : products.filter(p => p.category === selectedCategory);
-
-    // Then sort based on sortBy
-    const sorted = [...filtered];
+    // Products are already filtered by category from API
+    const sorted = [...products];
     switch (sortBy) {
       case "price-low":
-        sorted.sort((a, b) => a.price - b.price);
+        sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
         break;
       case "price-high":
-        sorted.sort((a, b) => b.price - a.price);
+        sorted.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
         break;
       case "featured":
       default:
@@ -134,7 +112,17 @@ export function AdminProductsPage() {
         break;
     }
     return sorted;
-  }, [products, selectedCategory, sortBy]);
+  }, [products, sortBy]);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -152,6 +140,12 @@ export function AdminProductsPage() {
             Add New Product
           </button>
         </div>
+
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
 
         {/* Filter and Sort Bar */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -201,32 +195,40 @@ export function AdminProductsPage() {
               className="bg-slate-800 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all border border-slate-700"
             >
               <div className="relative">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-48 object-cover"
-                />
-                {product.bigOffer && (
-                  <span className="absolute top-3 right-3 bg-red-500 text-white text-xs px-3 py-1 rounded-full">
-                    Big Offer
+                {product.images && Array.isArray(product.images) && product.images[0] ? (
+                  <img
+                    src={product.images[0]}
+                    alt={product.title}
+                    className="w-full h-48 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-slate-700 flex items-center justify-center">
+                    <span className="text-slate-500">No Image</span>
+                  </div>
+                )}
+                {product.featured && (
+                  <span className="absolute top-3 right-3 bg-cyan-500 text-white text-xs px-3 py-1 rounded-full">
+                    Featured
                   </span>
                 )}
-                {product.onOffer && !product.bigOffer && (
-                  <span className="absolute top-3 right-3 bg-orange-500 text-white text-xs px-3 py-1 rounded-full">
-                    On Offer
+                {product.discount && product.discount > 0 && (
+                  <span className="absolute top-3 left-3 bg-red-500 text-white text-xs px-3 py-1 rounded-full">
+                    {product.discount}% OFF
                   </span>
                 )}
               </div>
               <div className="p-5">
-                <h3 className="text-white text-lg mb-1">{product.name}</h3>
-                <p className="text-slate-400 text-sm mb-2 line-clamp-2">{product.description}</p>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-cyan-400">${product.price}</p>
-                  <p className="text-slate-500 text-sm">{product.category}</p>
-                </div>
-                {product.discount > 0 && (
-                  <p className="text-orange-400 text-sm mb-3">Discount: {product.discount}%</p>
+                <h3 className="text-white text-lg mb-1">{product.title}</h3>
+                {product.description && (
+                  <p className="text-slate-400 text-sm mb-2 line-clamp-2">{product.description}</p>
                 )}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-cyan-400">${parseFloat(product.price).toFixed(2)}</p>
+                  {product.category && (
+                    <p className="text-slate-500 text-sm">{product.category}</p>
+                  )}
+                </div>
+                <p className="text-slate-500 text-sm mb-3">Stock: {product.stock}</p>
 
                 <div className="flex gap-2">
                   <button
@@ -238,7 +240,8 @@ export function AdminProductsPage() {
                   </button>
                   <button
                     onClick={() => handleDeleteClick(product)}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                    disabled={deleting}
+                    className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete
@@ -278,7 +281,7 @@ export function AdminProductsPage() {
                   Are you sure you want to delete this product?
                 </p>
                 <p className="text-white font-semibold mb-6">
-                  "{productToDelete.name}"
+                  "{productToDelete.title}"
                 </p>
                 <p className="text-slate-400 text-sm mb-6">
                   This action cannot be undone.
@@ -293,10 +296,20 @@ export function AdminProductsPage() {
                   </button>
                   <button
                     onClick={handleDeleteConfirm}
-                    className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all flex items-center justify-center gap-2"
+                    disabled={deleting}
+                    className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg transition-all flex items-center justify-center gap-2"
                   >
-                    <Trash2 className="w-5 h-5" />
-                    Delete Product
+                    {deleting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-5 h-5" />
+                        Delete Product
+                      </>
+                    )}
                   </button>
                 </div>
               </motion.div>

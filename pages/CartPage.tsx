@@ -1,13 +1,16 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, Loader2 } from "lucide-react";
 import { useCart } from "../context/CartContext";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ordersAPI, checkoutAPI } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export function CartPage() {
   const { cartItems, updateQuantity, removeFromCart, clearCart, getSubtotal } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
 
   const [shippingInfo, setShippingInfo] = useState({
@@ -15,16 +18,85 @@ export function CartPage() {
     address: '',
     city: '',
     zipCode: '',
-    country: ''
+    country: '',
+    phone: ''
   });
+
+  const [billingInfo, setBillingInfo] = useState({
+    fullName: '',
+    address: '',
+    city: '',
+    zipCode: '',
+    country: '',
+    phone: ''
+  });
+
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const shippingCost = 10.00;
   const subtotal = getSubtotal();
   const total = subtotal + shippingCost;
 
-  const handleCheckout = () => {
-    // Checkout logic here
-    alert('Proceeding to checkout...');
+  const handleCheckout = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    // Validate shipping info
+    if (!shippingInfo.fullName || !shippingInfo.address || !shippingInfo.city || !shippingInfo.zipCode || !shippingInfo.country) {
+      setError('Please fill in all shipping information');
+      return;
+    }
+
+    // Use shipping info for billing if billing not filled
+    const finalBillingInfo = billingInfo.fullName ? billingInfo : shippingInfo;
+
+    try {
+      setProcessing(true);
+      setError(null);
+
+      // Create order
+      const orderResponse = await ordersAPI.create({
+        items: cartItems.map(item => ({
+          productId: item.id,
+          quantity: item.quantity
+        })),
+        shippingAddress: {
+          fullName: shippingInfo.fullName,
+          address: shippingInfo.address,
+          city: shippingInfo.city,
+          zipCode: shippingInfo.zipCode,
+          country: shippingInfo.country,
+          phone: shippingInfo.phone || undefined
+        },
+        billingAddress: {
+          fullName: finalBillingInfo.fullName,
+          address: finalBillingInfo.address,
+          city: finalBillingInfo.city,
+          zipCode: finalBillingInfo.zipCode,
+          country: finalBillingInfo.country,
+          phone: finalBillingInfo.phone || undefined
+        }
+      });
+
+      const orderId = orderResponse.order.id;
+
+      // Create Stripe checkout session
+      const checkoutResponse = await checkoutAPI.createSession(orderId);
+
+      // Redirect to Stripe checkout
+      if (checkoutResponse.url) {
+        window.location.href = checkoutResponse.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      setError(err.response?.data?.error || 'Failed to process checkout. Please try again.');
+      setProcessing(false);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -125,37 +197,92 @@ export function CartPage() {
               <div className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Full Name"
+                  placeholder="Full Name *"
                   value={shippingInfo.fullName}
                   onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Address *"
+                  value={shippingInfo.address}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="City *"
+                  value={shippingInfo.city}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="ZIP Code *"
+                  value={shippingInfo.zipCode}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, zipCode: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Country *"
+                  value={shippingInfo.country}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, country: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Phone (optional)"
+                  value={shippingInfo.phone}
+                  onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+            </div>
+
+            {/* Billing Information (Optional - use shipping if not filled) */}
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-md mb-4 sm:mb-6">
+              <h2 className="text-slate-900 text-xl sm:text-2xl mb-4 sm:mb-6">Billing Information (Optional)</h2>
+              <p className="text-slate-600 text-sm mb-4">Leave empty to use shipping address</p>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={billingInfo.fullName}
+                  onChange={(e) => setBillingInfo({ ...billingInfo, fullName: e.target.value })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
                 <input
                   type="text"
                   placeholder="Address"
-                  value={shippingInfo.address}
-                  onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
+                  value={billingInfo.address}
+                  onChange={(e) => setBillingInfo({ ...billingInfo, address: e.target.value })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
                 <input
                   type="text"
                   placeholder="City"
-                  value={shippingInfo.city}
-                  onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                  value={billingInfo.city}
+                  onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
                 <input
                   type="text"
                   placeholder="ZIP Code"
-                  value={shippingInfo.zipCode}
-                  onChange={(e) => setShippingInfo({ ...shippingInfo, zipCode: e.target.value })}
+                  value={billingInfo.zipCode}
+                  onChange={(e) => setBillingInfo({ ...billingInfo, zipCode: e.target.value })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
                 <input
                   type="text"
                   placeholder="Country"
-                  value={shippingInfo.country}
-                  onChange={(e) => setShippingInfo({ ...shippingInfo, country: e.target.value })}
+                  value={billingInfo.country}
+                  onChange={(e) => setBillingInfo({ ...billingInfo, country: e.target.value })}
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
@@ -180,11 +307,25 @@ export function CartPage() {
                 </div>
               </div>
 
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
               <button
                 onClick={handleCheckout}
-                className="w-full bg-green-500 hover:bg-green-600 text-white py-3 sm:py-4 rounded-lg transition-all transform hover:scale-105 text-sm sm:text-base"
+                disabled={processing || cartItems.length === 0}
+                className="w-full bg-green-500 hover:bg-green-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white py-3 sm:py-4 rounded-lg transition-all transform hover:scale-105 text-sm sm:text-base flex items-center justify-center gap-2"
               >
-                Proceed to Checkout
+                {processing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Proceed to Checkout'
+                )}
               </button>
             </div>
           </div>

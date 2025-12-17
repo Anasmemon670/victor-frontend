@@ -7,7 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
-import { products } from "@/data/products";
+import { productsAPI } from "@/lib/api";
 import logoImage from "../assets/77ac9b30465e2a638fe36d43d6692e10b6bf92e1.png";
 
 const pages = [
@@ -49,44 +49,39 @@ export function Header() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Mock messages
-  const [messages, setMessages] = useState([
-    { id: 1, sender: "Admin Support", text: "Hello! We've received your inquiry about the bulk order. Someone from our sales team will contact you shortly.", time: "10 mins ago", unread: true },
-    { id: 2, sender: "System", text: "Your order #8821 has been successfully delivered.", time: "2 hours ago", unread: false },
-    { id: 3, sender: "Admin", text: "Regarding your question about returns: Yes, you can return items within 30 days.", time: "1 day ago", unread: false },
-  ]);
-
-  const unreadCount = messages.filter(m => m.unread).length;
-
   const totalCartItems = getTotalItems();
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  // Filter products based on search query - only show products that match by title/name
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    const query = searchQuery.toLowerCase().trim();
+  // Search products via API
+  useEffect(() => {
+    const searchProducts = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
 
-    // Filter products where name/title contains the search query
-    const matchingProducts = products.filter(product => {
-      const name = product.name.toLowerCase();
-      // Check if product name/title contains the search query
-      return name.includes(query);
-    });
+      try {
+        setSearchLoading(true);
+        const response = await productsAPI.getAll({
+          search: searchQuery,
+          limit: 10
+        });
+        setSearchResults(response.products || []);
+      } catch (err) {
+        console.error('Search error:', err);
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
 
-    // Sort by relevance - products that start with query come first
-    matchingProducts.sort((a, b) => {
-      const aName = a.name.toLowerCase();
-      const bName = b.name.toLowerCase();
-
-      // Products starting with query get priority
-      if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
-      if (!aName.startsWith(query) && bName.startsWith(query)) return 1;
-
-      // Then sort alphabetically
-      return aName.localeCompare(bName);
-    });
-
-    return matchingProducts;
+    // Debounce search
+    const timeoutId = setTimeout(searchProducts, 300);
+    return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  const filteredProducts = searchResults;
 
   // Close search dropdown when clicking outside
   useEffect(() => {
@@ -185,28 +180,39 @@ export function Header() {
                       exit={{ opacity: 0, y: -10 }}
                       className="absolute top-full mt-2 w-full bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50 max-h-[600px] overflow-y-auto"
                     >
-                      {filteredProducts.map((product) => (
-                        <Link
-                          key={product.id}
-                          href={`/product/${product.id}`}
-                          onClick={() => {
-                            setSearchQuery("");
-                            setIsSearchFocused(false);
-                          }}
-                          className="flex items-center gap-3 p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
-                        >
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="w-12 h-12 object-cover rounded-lg"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{product.name}</p>
-                            <p className="text-slate-400 text-xs truncate">{product.category}</p>
-                            <p className="text-cyan-400 text-sm font-semibold">${product.price}</p>
-                          </div>
-                        </Link>
-                      ))}
+                      {searchLoading && (
+                        <div className="p-4 text-center text-slate-400 text-sm">Searching...</div>
+                      )}
+                      {!searchLoading && filteredProducts.length === 0 && searchQuery.trim() && (
+                        <div className="p-4 text-center text-slate-400 text-sm">No products found</div>
+                      )}
+                      {!searchLoading && filteredProducts.map((product) => {
+                        const images = product.images && Array.isArray(product.images) ? product.images : [];
+                        return (
+                          <Link
+                            key={product.id}
+                            href={`/product/${product.slug || product.id}`}
+                            onClick={() => {
+                              setSearchQuery("");
+                              setIsSearchFocused(false);
+                            }}
+                            className="flex items-center gap-3 p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                          >
+                            <img
+                              src={images[0] || '/images/products/headphones.png'}
+                              alt={product.title}
+                              className="w-12 h-12 object-cover rounded-lg"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white text-sm font-medium truncate">{product.title}</p>
+                              {product.category && (
+                                <p className="text-slate-400 text-xs truncate">{product.category}</p>
+                              )}
+                              <p className="text-cyan-400 text-sm font-semibold">${parseFloat(product.price).toFixed(2)}</p>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -236,11 +242,6 @@ export function Header() {
                 aria-label="Messages"
               >
                 <MessageSquare className="w-6 h-6" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-cyan-500 text-white text-[10px] h-4 w-4 flex items-center justify-center rounded-full font-bold border-2 border-slate-900">
-                    {unreadCount}
-                  </span>
-                )}
               </button>
             </div>
 
@@ -398,28 +399,39 @@ export function Header() {
                   exit={{ opacity: 0, y: -10 }}
                   className="absolute top-full mt-2 w-full bg-slate-800 rounded-lg shadow-xl border border-slate-700 z-50 max-h-[600px] overflow-y-auto"
                 >
-                  {filteredProducts.map((product) => (
-                    <Link
-                      key={product.id}
-                      href={`/product/${product.id}`}
-                      onClick={() => {
-                        setSearchQuery("");
-                        setIsSearchFocused(false);
-                      }}
-                      className="flex items-center gap-3 p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
-                    >
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-12 h-12 object-cover rounded-lg"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{product.name}</p>
-                        <p className="text-slate-400 text-xs truncate">{product.category}</p>
-                        <p className="text-cyan-400 text-sm font-semibold">${product.price}</p>
-                      </div>
-                    </Link>
-                  ))}
+                  {searchLoading && (
+                    <div className="p-4 text-center text-slate-400 text-sm">Searching...</div>
+                  )}
+                  {!searchLoading && filteredProducts.length === 0 && searchQuery.trim() && (
+                    <div className="p-4 text-center text-slate-400 text-sm">No products found</div>
+                  )}
+                  {!searchLoading && filteredProducts.map((product) => {
+                    const images = product.images && Array.isArray(product.images) ? product.images : [];
+                    return (
+                      <Link
+                        key={product.id}
+                        href={`/product/${product.slug || product.id}`}
+                        onClick={() => {
+                          setSearchQuery("");
+                          setIsSearchFocused(false);
+                        }}
+                        className="flex items-center gap-3 p-3 hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                      >
+                        <img
+                          src={images[0] || '/images/products/headphones.png'}
+                          alt={product.title}
+                          className="w-12 h-12 object-cover rounded-lg"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{product.title}</p>
+                          {product.category && (
+                            <p className="text-slate-400 text-xs truncate">{product.category}</p>
+                          )}
+                          <p className="text-cyan-400 text-sm font-semibold">${parseFloat(product.price).toFixed(2)}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </motion.div>
               )}
             </AnimatePresence>

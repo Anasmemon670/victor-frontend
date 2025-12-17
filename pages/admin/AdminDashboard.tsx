@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import {
@@ -9,8 +10,10 @@ import {
   Briefcase,
   Wrench,
   ShoppingCart,
-  Mail
+  Mail,
+  Loader2
 } from "lucide-react";
+import { adminAPI, productsAPI, blogAPI, ordersAPI } from "@/lib/api";
 
 const dashboardCards = [
   {
@@ -19,7 +22,7 @@ const dashboardCards = [
     icon: Package,
     path: "/admin/products",
     color: "from-cyan-500 to-blue-500",
-    count: "156"
+    countKey: "totalProducts"
   },
   {
     title: "Blog",
@@ -27,7 +30,7 @@ const dashboardCards = [
     icon: FileText,
     path: "/admin/blog",
     color: "from-purple-500 to-pink-500",
-    count: "42"
+    countKey: "totalBlogs"
   },
   {
     title: "Projects",
@@ -35,7 +38,7 @@ const dashboardCards = [
     icon: Briefcase,
     path: "/admin/projects",
     color: "from-green-500 to-teal-500",
-    count: "28"
+    countKey: "totalProjects"
   },
   {
     title: "Services",
@@ -43,7 +46,7 @@ const dashboardCards = [
     icon: Wrench,
     path: "/admin/services",
     color: "from-orange-500 to-red-500",
-    count: "12"
+    countKey: "totalServices"
   },
   {
     title: "Orders",
@@ -51,7 +54,7 @@ const dashboardCards = [
     icon: ShoppingCart,
     path: "/admin/orders",
     color: "from-indigo-500 to-purple-500",
-    count: "89"
+    countKey: "totalOrders"
   },
   {
     title: "Contact Messages",
@@ -59,12 +62,69 @@ const dashboardCards = [
     icon: Mail,
     path: "/admin/contact-messages",
     color: "from-yellow-500 to-orange-500",
-    count: "24"
+    countKey: "totalMessages"
   }
 ];
 
 export function AdminDashboard() {
   const router = useRouter();
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch admin stats
+        const statsResponse = await adminAPI.getStats();
+        setStats(statsResponse.stats);
+
+        // Fetch counts for other items
+        const [productsRes, blogRes] = await Promise.all([
+          productsAPI.getAll({ limit: 1 }),
+          blogAPI.getAll({ limit: 1, published: false })
+        ]);
+
+        setCounts({
+          totalProducts: statsResponse.stats?.totalProducts || productsRes.pagination?.total || 0,
+          totalBlogs: blogRes.pagination?.total || 0,
+          totalOrders: statsResponse.stats?.totalOrders || 0,
+          totalProjects: 0, // Not implemented in backend
+          totalServices: 0, // Not implemented in backend
+          totalMessages: statsResponse.stats?.pendingReturns || 0, // Using pending returns as placeholder
+        });
+      } catch (err: any) {
+        console.error('Error fetching dashboard stats:', err);
+        setError(err.response?.data?.error || 'Failed to load dashboard');
+        setCounts({
+          totalProducts: 0,
+          totalBlogs: 0,
+          totalOrders: 0,
+          totalProjects: 0,
+          totalServices: 0,
+          totalMessages: 0,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -79,9 +139,37 @@ export function AdminDashboard() {
           <p className="text-slate-400">Welcome to the admin panel</p>
         </motion.div>
 
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
+
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+              <p className="text-slate-400 text-sm mb-2">Total Revenue</p>
+              <p className="text-white text-2xl font-bold">${parseFloat(stats.totalRevenue || '0').toFixed(2)}</p>
+            </div>
+            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+              <p className="text-slate-400 text-sm mb-2">Total Users</p>
+              <p className="text-white text-2xl font-bold">{stats.totalUsers || 0}</p>
+            </div>
+            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+              <p className="text-slate-400 text-sm mb-2">Total Orders</p>
+              <p className="text-white text-2xl font-bold">{stats.totalOrders || 0}</p>
+            </div>
+            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+              <p className="text-slate-400 text-sm mb-2">Pending Returns</p>
+              <p className="text-white text-2xl font-bold">{stats.pendingReturns || 0}</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {dashboardCards.map((card, index) => {
             const Icon = card.icon;
+            const count = counts[card.countKey] || 0;
             return (
               <motion.div
                 key={card.title}
@@ -95,7 +183,7 @@ export function AdminDashboard() {
                   <div className={`w-14 h-14 bg-gradient-to-br ${card.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                     <Icon className="w-7 h-7 text-white" />
                   </div>
-                  <span className="text-slate-400 text-2xl">{card.count}</span>
+                  <span className="text-slate-400 text-2xl">{count}</span>
                 </div>
                 <h3 className="text-white text-xl mb-2">{card.title}</h3>
                 <p className="text-slate-400 text-sm">{card.description}</p>

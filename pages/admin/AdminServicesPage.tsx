@@ -1,10 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Edit, Trash2, Plus, X, Cpu, Code, Globe, Shield, Smartphone, Headphones, Zap, Rocket, Image as ImageIcon } from "lucide-react";
-import { services as sharedServices } from "@/data/services";
+import { Edit, Trash2, Plus, X, Cpu, Code, Globe, Shield, Smartphone, Headphones, Zap, Rocket, Loader2 } from "lucide-react";
+import { servicesAPI } from "@/lib/api";
 import type { LucideIcon } from "lucide-react";
 
 // Icon mapping
@@ -20,38 +20,25 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 interface Service {
-  id: number;
+  id: string;
   title: string;
   description: string;
-  features?: string[];
-  price?: string;
-  duration?: string;
-  iconName?: string;
-  IconComponent?: LucideIcon;
+  features?: string[] | null;
+  price?: string | null;
+  duration?: string | null;
+  iconName?: string | null;
+  active: boolean;
 }
 
-// Convert shared services to admin format
-const convertToAdminFormat = (service: typeof sharedServices[0]): Service => {
-  return {
-    id: service.id,
-    title: service.title,
-    description: service.description,
-    features: service.features,
-    price: "", // Optional field
-    duration: "", // Optional field
-    iconName: service.iconName || "Cpu",
-    IconComponent: service.icon
-  };
-};
-
-// Initialize with shared services converted to admin format
-const initialServices: Service[] = sharedServices.map(convertToAdminFormat);
-
 export function AdminServicesPage() {
-  const [services, setServices] = useState(initialServices);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -61,6 +48,25 @@ export function AdminServicesPage() {
     iconName: "Cpu"
   });
 
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await servicesAPI.getAll({ limit: 100, active: false });
+        setServices(response.services || []);
+      } catch (err: any) {
+        console.error('Error fetching services:', err);
+        setError(err.response?.data?.error || 'Failed to load services');
+        setServices([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchServices();
+  }, []);
+
   const handleAddNew = () => {
     setEditingService(null);
     setFormData({ title: "", description: "", features: "", price: "", duration: "", iconName: "Cpu" });
@@ -69,10 +75,11 @@ export function AdminServicesPage() {
 
   const handleEdit = (service: Service) => {
     setEditingService(service);
+    const features = service.features && Array.isArray(service.features) ? service.features : [];
     setFormData({
       title: service.title,
       description: service.description,
-      features: service.features?.join(", ") || "",
+      features: features.join(", "),
       price: service.price || "",
       duration: service.duration || "",
       iconName: service.iconName || "Cpu"
@@ -80,41 +87,64 @@ export function AdminServicesPage() {
     setShowEditModal(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.title.trim() || !formData.description.trim()) {
       alert("Please fill all required fields (Title and Description)!");
       return;
     }
 
-    const selectedIcon = iconMap[formData.iconName] || Cpu;
+    try {
+      setSaving(true);
+      const features = formData.features ? formData.features.split(",").map(f => f.trim()).filter(f => f) : [];
 
-    if (editingService) {
-      // Update existing service
-      setServices(services.map(s =>
-        s.id === editingService.id
-          ? {
-            ...s,
-            ...formData,
-            features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
-            iconName: formData.iconName,
-            IconComponent: selectedIcon
-          }
-          : s
-      ));
-      alert("Service updated successfully!");
-    } else {
-      // Add new service
-      const newService: Service = {
-        id: Math.max(...services.map(s => s.id)) + 1,
-        ...formData,
-        features: formData.features ? formData.features.split(",").map(f => f.trim()) : [],
-        iconName: formData.iconName,
-        IconComponent: selectedIcon
-      };
-      setServices([...services, newService]);
-      alert("Service added successfully!");
+      if (editingService) {
+        // Update existing service
+        const response = await servicesAPI.update(editingService.id, {
+          title: formData.title,
+          description: formData.description,
+          iconName: formData.iconName || null,
+          features: features.length > 0 ? features : null,
+          price: formData.price || null,
+          duration: formData.duration || null,
+        });
+        setServices(services.map(s => s.id === editingService.id ? response.service : s));
+        alert("Service updated successfully!");
+      } else {
+        // Create new service
+        const response = await servicesAPI.create({
+          title: formData.title,
+          description: formData.description,
+          iconName: formData.iconName || undefined,
+          features: features.length > 0 ? features : undefined,
+          price: formData.price || null,
+          duration: formData.duration || null,
+        });
+        setServices([response.service, ...services]);
+        alert("Service created successfully!");
+      }
+      setShowEditModal(false);
+    } catch (err: any) {
+      console.error('Error saving service:', err);
+      alert(err.response?.data?.error || 'Failed to save service');
+    } finally {
+      setSaving(false);
     }
-    setShowEditModal(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      setDeleting(true);
+      await servicesAPI.delete(deleteConfirm);
+      setServices(services.filter(s => s.id !== deleteConfirm));
+      setDeleteConfirm(null);
+    } catch (err: any) {
+      console.error('Error deleting service:', err);
+      alert(err.response?.data?.error || 'Failed to delete service');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -138,64 +168,98 @@ export function AdminServicesPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {services.map((service, index) => {
-            const Icon = service.IconComponent || iconMap[service.iconName || "Cpu"] || Cpu;
-            return (
-              <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-white text-xl">{service.title}</h3>
-                </div>
-                <p className="text-slate-400 mb-4">{service.description}</p>
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
 
-                {/* Features */}
-                {service.features && service.features.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-slate-300 text-sm mb-2">Features:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {service.features.map((feature, i) => (
-                        <span key={i} className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
-                          {feature}
-                        </span>
-                      ))}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-cyan-500" />
+          </div>
+        ) : services.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-400">No services yet. Create your first service!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {services.map((service, index) => {
+              const Icon = service.iconName ? iconMap[service.iconName] || Cpu : Cpu;
+              const features = service.features && Array.isArray(service.features) ? service.features : [];
+              
+              return (
+                <motion.div key={service.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-6 h-6 text-white" />
                     </div>
+                    <h3 className="text-white text-xl">{service.title}</h3>
                   </div>
-                )}
+                  <p className="text-slate-400 mb-4">{service.description}</p>
 
-                {(service.price || service.duration) && (
-                  <div className="flex items-center gap-4 text-sm text-slate-500 mb-4">
-                    {service.price && <span className="text-cyan-400">{service.price}</span>}
-                    {service.price && service.duration && <span>•</span>}
-                    {service.duration && <span>Duration: {service.duration}</span>}
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(service)}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit
-                  </button>
-                  {deleteConfirm === service.id ? (
-                    <>
-                      <button onClick={() => setServices(services.filter(s => s.id !== service.id))} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all">Confirm</button>
-                      <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-all">Cancel</button>
-                    </>
-                  ) : (
-                    <button onClick={() => setDeleteConfirm(service.id)} className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2">
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </button>
+                  {/* Features */}
+                  {features.length > 0 && (
+                    <div className="mb-4">
+                      <p className="text-slate-300 text-sm mb-2">Features:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {features.map((feature, i) => (
+                          <span key={i} className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+
+                  {(service.price || service.duration) && (
+                    <div className="flex items-center gap-4 text-sm text-slate-500 mb-4">
+                      {service.price && <span className="text-cyan-400">{service.price}</span>}
+                      {service.price && service.duration && <span>•</span>}
+                      {service.duration && <span>Duration: {service.duration}</span>}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(service)}
+                      className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </button>
+                    {deleteConfirm === service.id ? (
+                      <>
+                        <button 
+                          onClick={handleDeleteConfirm}
+                          disabled={deleting}
+                          className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                        >
+                          {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm'}
+                        </button>
+                        <button 
+                          onClick={() => setDeleteConfirm(null)}
+                          disabled={deleting}
+                          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-300 rounded-lg transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={() => setDeleteConfirm(service.id)}
+                        disabled={deleting}
+                        className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
         {showEditModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -268,13 +332,22 @@ export function AdminServicesPage() {
               <div className="flex gap-4 mt-6">
                 <button
                   onClick={handleSave}
-                  className="flex-1 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-all"
+                  disabled={saving}
+                  className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all flex items-center justify-center gap-2"
                 >
-                  Save
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-all"
+                  disabled={saving}
+                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg transition-all"
                 >
                   Cancel
                 </button>

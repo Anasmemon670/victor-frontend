@@ -6,12 +6,40 @@ import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useCart } from "../context/CartContext";
-import { bigOffers as products } from "@/data/offers";
+import { productsAPI } from "@/lib/api";
+
+interface Product {
+  id: string;
+  title: string;
+  price: string;
+  discount?: number;
+  images?: string[] | null;
+  slug?: string;
+}
 
 export function BigOffers() {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const { addToCart } = useCart();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await productsAPI.getAll({ featured: true, limit: 8 });
+        setProducts(response.products || []);
+      } catch (err) {
+        console.error('Error fetching featured products:', err);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeaturedProducts();
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -53,83 +81,91 @@ export function BigOffers() {
         </motion.div>
 
         {/* Offer Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-10">
-          {products.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={isVisible ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className="bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-2xl transition-all group"
-            >
-              {/* Product Image with Discount Badge */}
-              <div
-                onClick={() => router.push(`/product/${product.id}`)}
-                className="relative h-48 sm:h-56 overflow-hidden cursor-pointer"
-              >
-                <ImageWithFallback
-                  src={product.imageQuery}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                {/* Discount Badge */}
-                <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm shadow-lg">
-                  {product.discount}
-                </div>
-              </div>
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-slate-400">Loading offers...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-400">No featured products available.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-10">
+            {products.map((product, index) => {
+              const images = product.images && Array.isArray(product.images) ? product.images : [];
+              const price = parseFloat(product.price);
+              const originalPrice = product.discount
+                ? price / (1 - product.discount / 100)
+                : price;
 
-              {/* Content */}
-              <div className="p-5">
-                <h3
-                  onClick={() => router.push(`/product/${product.id}`)}
-                  className="text-white text-lg mb-2 cursor-pointer hover:text-cyan-400 transition-colors"
+              return (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={isVisible ? { opacity: 1, y: 0 } : {}}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  className="bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-2xl transition-all group"
                 >
-                  {product.name}
-                </h3>
-
-                {/* Rating */}
-                <div className="flex items-center gap-1 mb-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 ${i < product.rating
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-slate-600"
-                        }`}
+                  {/* Product Image with Discount Badge */}
+                  <div
+                    onClick={() => router.push(`/product/${product.slug || product.id}`)}
+                    className="relative h-48 sm:h-56 overflow-hidden cursor-pointer"
+                  >
+                    <ImageWithFallback
+                      src={images[0] || '/images/products/headphones.png'}
+                      alt={product.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
-                  ))}
-                  <span className="text-slate-400 text-sm ml-1">({product.reviews})</span>
-                </div>
+                    {/* Discount Badge */}
+                    {product.discount && product.discount > 0 && (
+                      <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm shadow-lg">
+                        {product.discount}% OFF
+                      </div>
+                    )}
+                  </div>
 
-                {/* Price */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-white text-2xl">${product.price}</span>
-                  <span className="text-slate-500 line-through text-sm">
-                    ${product.originalPrice}
-                  </span>
-                </div>
+                  {/* Content */}
+                  <div className="p-5">
+                    <h3
+                      onClick={() => router.push(`/product/${product.slug || product.id}`)}
+                      className="text-white text-lg mb-2 cursor-pointer hover:text-cyan-400 transition-colors"
+                    >
+                      {product.title}
+                    </h3>
 
-                {/* Add to Cart Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    addToCart({
-                      id: product.id.toString(),
-                      name: product.name,
-                      price: product.price,
-                      originalPrice: product.originalPrice,
-                      image: product.imageQuery
-                    });
-                  }}
-                  className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-cyan-500/50"
-                >
-                  Add to Cart
-                  <span>+</span>
-                </button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                    {/* Price */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-white text-2xl">${price.toFixed(2)}</span>
+                      {product.discount && product.discount > 0 && (
+                        <span className="text-slate-500 line-through text-sm">
+                          ${originalPrice.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Add to Cart Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart({
+                          id: product.id,
+                          name: product.title,
+                          price: price,
+                          originalPrice: originalPrice,
+                          image: images[0] || '/images/products/headphones.png'
+                        });
+                      }}
+                      className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-cyan-500/50"
+                    >
+                      Add to Cart
+                      <span>+</span>
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
 
         {/* View All Button */}
         <motion.div
