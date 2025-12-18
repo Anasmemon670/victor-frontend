@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import { Mail, User, Calendar, X, Loader2 } from "lucide-react";
 import { contactAPI } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 interface ContactMessage {
   id: string;
@@ -18,16 +19,21 @@ interface ContactMessage {
 }
 
 export function AdminContactMessagesPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [replySubject, setReplySubject] = useState("");
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
+    // Wait for auth to complete before fetching messages
+    if (authLoading) return;
+
     const fetchMessages = async () => {
       try {
         setLoading(true);
@@ -36,7 +42,14 @@ export function AdminContactMessagesPage() {
         setMessages(response.messages || []);
       } catch (err: any) {
         console.error('Error fetching contact messages:', err);
-        setError(err.response?.data?.error || 'Failed to load messages');
+        const status = err.response?.status;
+        if (status === 403) {
+          setError('Access denied. Please ensure you are logged in as an admin.');
+        } else if (status === 401) {
+          setError('Authentication required. Please log in again.');
+        } else {
+          setError(err.response?.data?.error || 'Failed to load messages');
+        }
         setMessages([]);
       } finally {
         setLoading(false);
@@ -44,7 +57,7 @@ export function AdminContactMessagesPage() {
     };
 
     fetchMessages();
-  }, []);
+  }, [authLoading]);
 
   const handleMessageClick = async (message: ContactMessage) => {
     setSelectedMessage(message);
@@ -64,16 +77,31 @@ export function AdminContactMessagesPage() {
     if (selectedMessage) {
       setShowReplyModal(true);
       setReplyText("");
+      setReplySubject(selectedMessage.subject ? `Re: ${selectedMessage.subject}` : "Re: Your inquiry");
     }
   };
 
-  const handleSendReply = () => {
-    if (replyText.trim()) {
-      alert(`Reply sent to: ${selectedMessage?.email}\n\nMessage: ${replyText}`);
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyText.trim() || !replySubject.trim()) {
+      alert("Please enter both subject and message!");
+      return;
+    }
+
+    try {
+      setUpdating(true);
+      await contactAPI.reply(selectedMessage.id, {
+        subject: replySubject,
+        message: replyText,
+      });
       setShowReplyModal(false);
       setReplyText("");
-    } else {
-      alert("Please enter a reply message!");
+      setReplySubject("");
+      alert("Reply sent successfully! The user will see it in their messages.");
+    } catch (err: any) {
+      console.error('Error sending reply:', err);
+      alert(err.response?.data?.error || 'Failed to send reply');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -340,6 +368,7 @@ export function AdminContactMessagesPage() {
               </div>
             )}
           </div>
+          </div>
         )}
       </div>
 
@@ -348,22 +377,42 @@ export function AdminContactMessagesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-slate-800 rounded-xl p-8 w-96">
             <h2 className="text-white text-xl mb-4">Reply to {selectedMessage?.name}</h2>
-            <textarea
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              className="w-full h-32 bg-slate-700/50 rounded-lg p-4 border border-slate-600 text-slate-200 leading-relaxed"
-              placeholder="Type your reply here..."
-            />
+            <div className="mb-4">
+              <label className="block text-slate-300 text-sm mb-2">Subject</label>
+              <input
+                type="text"
+                value={replySubject}
+                onChange={(e) => setReplySubject(e.target.value)}
+                className="w-full bg-slate-700/50 rounded-lg p-3 border border-slate-600 text-slate-200"
+                placeholder="Subject"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-slate-300 text-sm mb-2">Message</label>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                className="w-full h-32 bg-slate-700/50 rounded-lg p-4 border border-slate-600 text-slate-200 leading-relaxed"
+                placeholder="Type your reply here..."
+              />
+            </div>
             <div className="mt-4 flex justify-end gap-3">
               <button
                 onClick={handleSendReply}
-                className="bg-cyan-500 hover:bg-cyan-600 text-white py-3 px-6 rounded-lg transition-all"
+                disabled={updating}
+                className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-600 text-white py-3 px-6 rounded-lg transition-all flex items-center gap-2"
               >
+                {updating && <Loader2 className="w-4 h-4 animate-spin" />}
                 Send
               </button>
               <button
-                onClick={() => setShowReplyModal(false)}
-                className="bg-slate-700 hover:bg-slate-600 text-slate-300 py-3 px-6 rounded-lg transition-all"
+                onClick={() => {
+                  setShowReplyModal(false);
+                  setReplyText("");
+                  setReplySubject("");
+                }}
+                disabled={updating}
+                className="bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-slate-300 py-3 px-6 rounded-lg transition-all"
               >
                 Cancel
               </button>

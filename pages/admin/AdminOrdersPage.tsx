@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import { Eye, X, Loader2 } from "lucide-react";
+import { Eye, X, Loader2, RefreshCw } from "lucide-react";
 import { ordersAPI } from "@/lib/api";
 
 interface OrderItem {
@@ -20,9 +20,6 @@ interface SubOrder {
   items: OrderItem[];
   status: string;
   trackingNumber?: string;
-  supplier?: {
-    name: string;
-  };
 }
 
 interface Order {
@@ -40,31 +37,41 @@ interface Order {
   subOrders: SubOrder[];
 }
 
+
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchOrders = async () => {
+    try {
+      setError(null);
+      const response = await ordersAPI.getAll({ limit: 100 });
+      setOrders(response.orders || []);
+    } catch (err: any) {
+      console.error('Error fetching orders:', err);
+      setError(err.response?.data?.error || 'Failed to load orders');
+      setOrders([]);
+    }
+  };
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await ordersAPI.getAll({ limit: 100 });
-        setOrders(response.orders || []);
-      } catch (err: any) {
-        console.error('Error fetching orders:', err);
-        setError(err.response?.data?.error || 'Failed to load orders');
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
+    const loadOrders = async () => {
+      setLoading(true);
+      await fetchOrders();
+      setLoading(false);
     };
-
-    fetchOrders();
+    loadOrders();
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+  };
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
@@ -114,9 +121,19 @@ export function AdminOrdersPage() {
   return (
     <AdminLayout>
       <div>
-        <div className="mb-8">
-          <h1 className="text-white text-3xl mb-2">Manage Orders</h1>
-          <p className="text-slate-400">{orders.length} total orders</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-white text-3xl mb-2">Manage Orders</h1>
+            <p className="text-slate-400">{orders.length} total orders</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg transition-all flex items-center gap-2"
+          >
+            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
 
         {error && (
@@ -269,6 +286,7 @@ export function AdminOrdersPage() {
             </motion.div>
           </div>
         )}
+
       </div>
     </AdminLayout>
   );

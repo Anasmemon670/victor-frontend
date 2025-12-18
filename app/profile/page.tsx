@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -107,7 +107,9 @@ export default function ProfilePage() {
       });
 
       if (response.user) {
-        await refreshUser();
+        // Update user directly from response instead of calling refreshUser
+        // This prevents logout if refreshUser fails
+        updateUser(response.user);
         toast.success("Profile updated successfully!");
         setShowConfirmModal(false);
       } else {

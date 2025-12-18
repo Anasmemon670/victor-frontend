@@ -18,6 +18,26 @@ export function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState("");
+  
+  // Password validation function
+  const validatePassword = (pwd: string) => {
+    const hasMinLength = pwd.length >= 8;
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasLowerCase = /[a-z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd);
+    
+    return {
+      isValid: hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar,
+      hasMinLength,
+      hasUpperCase,
+      hasLowerCase,
+      hasNumber,
+      hasSpecialChar
+    };
+  };
+  
+  const passwordValidation = validatePassword(password);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +56,17 @@ export function RegisterPage() {
       setError("Password is required");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+    
+    // Validate password strength
+    const validation = validatePassword(password);
+    if (!validation.isValid) {
+      const missing = [];
+      if (!validation.hasMinLength) missing.push("at least 8 characters");
+      if (!validation.hasUpperCase) missing.push("one uppercase letter");
+      if (!validation.hasLowerCase) missing.push("one lowercase letter");
+      if (!validation.hasNumber) missing.push("one number");
+      if (!validation.hasSpecialChar) missing.push("one special character");
+      setError(`Password must contain: ${missing.join(", ")}`);
       return;
     }
     if (password !== confirmPassword) {
@@ -163,6 +192,34 @@ export function RegisterPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {/* Password Requirements */}
+              {password && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-slate-400 text-xs mb-2">Password must contain:</p>
+                  <div className="space-y-1 text-xs">
+                    <div className={`flex items-center gap-2 ${passwordValidation.hasMinLength ? 'text-green-400' : 'text-slate-500'}`}>
+                      <span>{passwordValidation.hasMinLength ? '✓' : '○'}</span>
+                      <span>At least 8 characters</span>
+                    </div>
+                    <div className={`flex items-center gap-2 ${passwordValidation.hasUpperCase ? 'text-green-400' : 'text-slate-500'}`}>
+                      <span>{passwordValidation.hasUpperCase ? '✓' : '○'}</span>
+                      <span>One uppercase letter (A-Z)</span>
+                    </div>
+                    <div className={`flex items-center gap-2 ${passwordValidation.hasLowerCase ? 'text-green-400' : 'text-slate-500'}`}>
+                      <span>{passwordValidation.hasLowerCase ? '✓' : '○'}</span>
+                      <span>One lowercase letter (a-z)</span>
+                    </div>
+                    <div className={`flex items-center gap-2 ${passwordValidation.hasNumber ? 'text-green-400' : 'text-slate-500'}`}>
+                      <span>{passwordValidation.hasNumber ? '✓' : '○'}</span>
+                      <span>One number (0-9)</span>
+                    </div>
+                    <div className={`flex items-center gap-2 ${passwordValidation.hasSpecialChar ? 'text-green-400' : 'text-slate-500'}`}>
+                      <span>{passwordValidation.hasSpecialChar ? '✓' : '○'}</span>
+                      <span>One special character (!@#$%^&*...)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Confirm Password Field */}

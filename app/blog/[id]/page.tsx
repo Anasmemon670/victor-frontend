@@ -124,8 +124,23 @@ export default function BlogPostDetail() {
                     )}
 
                     {/* Content */}
-                    <div className="prose prose-invert prose-lg max-w-none text-slate-300">
-                        <div dangerouslySetInnerHTML={{ __html: post.content || "" }} />
+                    <div className="prose prose-invert prose-lg max-w-none text-slate-300 
+                        [&_a]:text-cyan-400 [&_a]:underline [&_a:hover]:text-cyan-300 [&_a]:cursor-pointer 
+                        [&_button]:cursor-pointer [&_*]:pointer-events-auto
+                        [&_h1]:text-4xl [&_h1]:font-bold [&_h1]:text-white [&_h1]:mt-8 [&_h1]:mb-4
+                        [&_h2]:text-3xl [&_h2]:font-bold [&_h2]:text-white [&_h2]:mt-6 [&_h2]:mb-3
+                        [&_h3]:text-2xl [&_h3]:font-bold [&_h3]:text-white [&_h3]:mt-5 [&_h3]:mb-2
+                        [&_h4]:text-xl [&_h4]:font-bold [&_h4]:text-white [&_h4]:mt-4 [&_h4]:mb-2
+                        [&_h5]:text-lg [&_h5]:font-bold [&_h5]:text-white [&_h5]:mt-3 [&_h5]:mb-2
+                        [&_h6]:text-base [&_h6]:font-bold [&_h6]:text-white [&_h6]:mt-3 [&_h6]:mb-2
+                        [&_p]:mb-4 [&_p]:leading-relaxed
+                        [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-4
+                        [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:mb-4
+                        [&_li]:mb-2">
+                        <div 
+                            dangerouslySetInnerHTML={{ __html: post.content || "" }}
+                            className="blog-content"
+                        />
                     </div>
                 </motion.article>
             </div>

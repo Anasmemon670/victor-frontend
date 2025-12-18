@@ -13,8 +13,11 @@ interface Product {
   price: string;
   discount?: number;
   category?: string;
+  description?: string;
+  stock?: number;
   images?: string[] | null;
   slug?: string;
+  featured?: boolean;
 }
 
 export function ProductsPage() {
@@ -214,25 +217,46 @@ export function ProductsPage() {
 
               {/* Product Info */}
               <div className="p-5">
-                {product.category && (
-                  <span className="text-cyan-600 text-sm">{product.category}</span>
-                )}
+                <div className="flex items-center justify-between mb-2">
+                  {product.category && (
+                    <span className="text-cyan-600 text-xs sm:text-sm">{product.category}</span>
+                  )}
+                  {product.featured && (
+                    <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full">
+                      Featured
+                    </span>
+                  )}
+                </div>
                 <h3
                   className="text-slate-900 text-lg mb-2 group-hover:text-cyan-600 transition-colors"
                 >
                   {product.title}
                 </h3>
 
-                {/* Price */}
-                <div className="flex items-center gap-2 mb-4">
-                  {product.discount && product.discount > 0 && (
-                    <span className="text-slate-500 line-through text-sm">
-                      ${(parseFloat(product.price) / (1 - product.discount / 100)).toFixed(2)}
+                {/* Description */}
+                {product.description && (
+                  <p className="text-slate-600 text-sm mb-3 line-clamp-2">
+                    {product.description}
+                  </p>
+                )}
+
+                {/* Price and Stock */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    {product.discount && product.discount > 0 && (
+                      <span className="text-slate-500 line-through text-sm">
+                        ${(parseFloat(product.price) / (1 - product.discount / 100)).toFixed(2)}
+                      </span>
+                    )}
+                    <span className="text-slate-900 text-xl sm:text-2xl">
+                      ${parseFloat(product.price).toFixed(2)}
+                    </span>
+                  </div>
+                  {product.stock !== undefined && (
+                    <span className="text-slate-500 text-xs sm:text-sm">
+                      Stock: {product.stock}
                     </span>
                   )}
-                  <span className="text-slate-900 text-2xl">
-                    ${parseFloat(product.price).toFixed(2)}
-                  </span>
                 </div>
 
                 {/* Add to Cart Button */}

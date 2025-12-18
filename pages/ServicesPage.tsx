@@ -248,7 +248,6 @@ export function ServicesPage() {
               })}
             </div>
           )}
-          </div>
         </div>
       </div>
 

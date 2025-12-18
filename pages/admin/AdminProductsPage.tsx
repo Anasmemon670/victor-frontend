@@ -80,7 +80,9 @@ export function AdminProductsPage() {
       setProductToDelete(null);
     } catch (err: any) {
       console.error('Error deleting product:', err);
-      alert(err.response?.data?.error || 'Failed to delete product');
+      console.error('Error response:', err.response);
+      const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Failed to delete product';
+      alert(errorMessage);
     } finally {
       setDeleting(false);
     }

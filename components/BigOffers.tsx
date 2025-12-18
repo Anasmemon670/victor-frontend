@@ -13,8 +13,12 @@ interface Product {
   title: string;
   price: string;
   discount?: number;
+  description?: string;
+  category?: string;
+  stock?: number;
   images?: string[] | null;
   slug?: string;
+  featured?: boolean;
 }
 
 export function BigOffers() {
@@ -126,6 +130,16 @@ export function BigOffers() {
 
                   {/* Content */}
                   <div className="p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      {product.category && (
+                        <span className="text-cyan-400 text-xs">{product.category}</span>
+                      )}
+                      {product.featured && (
+                        <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full">
+                          Featured
+                        </span>
+                      )}
+                    </div>
                     <h3
                       onClick={() => router.push(`/product/${product.slug || product.id}`)}
                       className="text-white text-lg mb-2 cursor-pointer hover:text-cyan-400 transition-colors"
@@ -133,13 +147,24 @@ export function BigOffers() {
                       {product.title}
                     </h3>
 
-                    {/* Price */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-white text-2xl">${price.toFixed(2)}</span>
-                      {product.discount && product.discount > 0 && (
-                        <span className="text-slate-500 line-through text-sm">
-                          ${originalPrice.toFixed(2)}
-                        </span>
+                    {product.description && (
+                      <p className="text-slate-300 text-sm mb-3 line-clamp-2">
+                        {product.description}
+                      </p>
+                    )}
+
+                    {/* Price and Stock */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-white text-xl sm:text-2xl">${price.toFixed(2)}</span>
+                        {product.discount && product.discount > 0 && (
+                          <span className="text-slate-500 line-through text-sm">
+                            ${originalPrice.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      {product.stock !== undefined && (
+                        <span className="text-slate-400 text-xs">Stock: {product.stock}</span>
                       )}
                     </div>
 

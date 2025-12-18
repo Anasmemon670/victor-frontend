@@ -197,9 +197,9 @@ export function BlogPage() {
                 className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all cursor-pointer group"
               >
                 {/* Post Image */}
-                <div className="h-48 overflow-hidden relative">
+                <div className="h-48 overflow-hidden relative bg-slate-800">
                   <ImageWithFallback
-                    src={post.image}
+                    src={post.featuredImage || ''}
                     alt={post.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
@@ -220,10 +220,14 @@ export function BlogPage() {
                     {post.title}
                   </h2>
 
-                  {/* Excerpt */}
-                  {post.excerpt && (
-                    <p className="text-slate-400 text-sm mb-4 line-clamp-2">
-                      {post.excerpt}
+                  {/* Excerpt or Content Preview */}
+                  {(post.excerpt || post.content) && (
+                    <p className="text-slate-400 text-sm mb-4 line-clamp-3 leading-relaxed">
+                      {post.excerpt || 
+                        (post.content 
+                          ? post.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...' 
+                          : '')
+                      }
                     </p>
                   )}
 

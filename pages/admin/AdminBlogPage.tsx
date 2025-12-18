@@ -190,9 +190,9 @@ export function AdminBlogPage() {
             <motion.div key={blog.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
               <div className="flex items-start gap-3 lg:gap-4">
                 {/* Blog Image */}
-                <div className="w-24 h-24 lg:w-32 lg:h-32 flex-shrink-0 rounded-lg overflow-hidden">
+                <div className="w-24 h-24 lg:w-32 lg:h-32 flex-shrink-0 rounded-lg overflow-hidden bg-slate-700">
                   <ImageWithFallback
-                    src={blog.image}
+                    src={blog.featuredImage || ''}
                     alt={blog.title}
                     className="w-full h-full object-cover"
                   />
@@ -201,8 +201,16 @@ export function AdminBlogPage() {
                 {/* Blog Content */}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-white text-lg lg:text-xl mb-1 lg:mb-2 line-clamp-2">{blog.title}</h3>
-                  {blog.excerpt && (
-                    <p className="text-slate-400 mb-2 lg:mb-3 text-sm lg:text-base line-clamp-2">{blog.excerpt}</p>
+                  
+                  {/* Excerpt or Content Preview */}
+                  {(blog.excerpt || blog.content) && (
+                    <p className="text-slate-400 mb-2 lg:mb-3 text-sm lg:text-base line-clamp-2 leading-relaxed">
+                      {blog.excerpt || 
+                        (blog.content 
+                          ? blog.content.replace(/<[^>]*>/g, '').substring(0, 120) + '...' 
+                          : '')
+                      }
+                    </p>
                   )}
 
                   <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-xs lg:text-sm text-slate-500">

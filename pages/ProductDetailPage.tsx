@@ -3,9 +3,11 @@
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Star, ShoppingCart, Heart, Share2, Truck, Shield, RefreshCw, ArrowLeft, Loader2 } from "lucide-react";
-import { productsAPI } from "@/lib/api";
+import { Star, ShoppingCart, Share2, Truck, Shield, RefreshCw, ArrowLeft, Loader2, X } from "lucide-react";
+import { productsAPI, ordersAPI } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 interface Product {
   id: string;
@@ -16,11 +18,6 @@ interface Product {
   category?: string;
   stock: number;
   images?: string[] | null;
-  supplier?: {
-    id: string;
-    name: string;
-    email?: string;
-  };
 }
 
 export function ProductDetailPage() {
@@ -28,12 +25,33 @@ export function ProductDetailPage() {
   const id = params?.id as string | undefined;
   const router = useRouter();
   const { addToCart } = useCart();
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [activeTab, setActiveTab] = useState("description");
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showBuyModal, setShowBuyModal] = useState(false);
+  const [processingBuy, setProcessingBuy] = useState(false);
+  
+  // Shipping/Billing info for Buy button
+  const [shippingInfo, setShippingInfo] = useState({
+    fullName: "",
+    address: "",
+    city: "",
+    zipCode: "",
+    country: "",
+    phone: ""
+  });
+  const [billingInfo, setBillingInfo] = useState({
+    fullName: "",
+    address: "",
+    city: "",
+    zipCode: "",
+    country: "",
+    phone: ""
+  });
 
   // Handle case when id is not available during SSR
   if (!id) {
@@ -92,16 +110,166 @@ export function ProductDetailPage() {
   const originalPrice = product.discount
     ? price / (1 - product.discount / 100)
     : price;
+  const discountPercent = product.discount || 0;
   const inStock = product.stock > 0;
 
   const handleAddToCart = () => {
-    addToCart({
-      id: product.id,
-      name: product.title,
-      price: price,
-      image: images[0] || '/images/products/headphones.png',
-      originalPrice: originalPrice
-    });
+    for (let i = 0; i < quantity; i++) {
+      addToCart({
+        id: product.id,
+        name: product.title,
+        price: price,
+        image: images[0] || '/images/products/headphones.png',
+        originalPrice: originalPrice
+      });
+    }
+    toast.success(`${quantity} item(s) added to cart!`);
+  };
+
+  const handleWishlistToggle = async () => {
+    if (!user) {
+      toast.error('Please login to add items to wishlist');
+      router.push('/login');
+      return;
+    }
+
+    try {
+      if (isInWishlist) {
+        await wishlistAPI.remove(product.id);
+        setIsInWishlist(false);
+        toast.success('Removed from wishlist');
+      } else {
+        await wishlistAPI.add(product.id);
+        setIsInWishlist(true);
+        toast.success('Added to wishlist');
+      }
+    } catch (err: any) {
+      console.error('Wishlist error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to update wishlist';
+      toast.error(errorMessage);
+      // If auth error, redirect to login
+      if (err.response?.status === 401) {
+        setTimeout(() => router.push('/login'), 2000);
+      }
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.title,
+          text: product.description || product.title,
+          url: url,
+        });
+        toast.success('Shared successfully!');
+      } catch (err: any) {
+        // User cancelled or error - don't show error if user cancelled
+        if (err.name !== 'AbortError') {
+          console.error('Share error:', err);
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard!');
+      } catch (err) {
+        console.error('Clipboard error:', err);
+        toast.error('Failed to copy link. Please copy manually.');
+      }
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    setShowBuyModal(true);
+  };
+
+  const handleSubmitBuy = async () => {
+    if (!user) {
+      toast.error('Please login to place an order');
+      router.push('/login');
+      return;
+    }
+
+    if (!shippingInfo.fullName || !shippingInfo.address || !shippingInfo.city || !shippingInfo.zipCode || !shippingInfo.country) {
+      toast.error('Please fill in all shipping information');
+      return;
+    }
+
+    const finalBillingInfo = billingInfo.fullName ? billingInfo : shippingInfo;
+
+    try {
+      setProcessingBuy(true);
+      
+      // Create order directly (no payment required)
+      const orderResponse = await ordersAPI.create({
+        items: [{
+          productId: product.id,
+          quantity: quantity
+        }],
+        shippingAddress: {
+          fullName: shippingInfo.fullName.trim(),
+          address: shippingInfo.address.trim(),
+          city: shippingInfo.city.trim(),
+          zipCode: shippingInfo.zipCode.trim(),
+          country: shippingInfo.country.trim(),
+          phone: shippingInfo.phone?.trim() || undefined
+        },
+        billingAddress: {
+          fullName: finalBillingInfo.fullName.trim(),
+          address: finalBillingInfo.address.trim(),
+          city: finalBillingInfo.city.trim(),
+          zipCode: finalBillingInfo.zipCode.trim(),
+          country: finalBillingInfo.country.trim(),
+          phone: finalBillingInfo.phone?.trim() || undefined
+        }
+      });
+
+      // Order created successfully
+      toast.success('Order placed successfully!');
+      setShowBuyModal(false);
+      
+      // Reset form
+      setShippingInfo({
+        fullName: "",
+        address: "",
+        city: "",
+        zipCode: "",
+        country: "",
+        phone: ""
+      });
+      setBillingInfo({
+        fullName: "",
+        address: "",
+        city: "",
+        zipCode: "",
+        country: "",
+        phone: ""
+      });
+      
+      // Redirect to orders page after a short delay
+      setTimeout(() => {
+        router.push('/orders');
+      }, 1500);
+      
+    } catch (err: any) {
+      console.error('Buy now error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to place order. Please try again.';
+      toast.error(errorMessage);
+      
+      // If auth error, redirect to login
+      if (err.response?.status === 401) {
+        setTimeout(() => router.push('/login'), 2000);
+      }
+      
+      setProcessingBuy(false);
+    }
   };
 
   return (
@@ -171,51 +339,37 @@ export function ProductDetailPage() {
           >
             <span className="text-cyan-600 text-sm">{product.category}</span>
             <h1 className="text-slate-900 text-3xl md:text-4xl mb-4 mt-2">
-              {product.name}
+              {product.title}
             </h1>
-
-            {/* Rating */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-5 h-5 ${i < Math.floor(product.rating)
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "text-slate-300"
-                      }`}
-                  />
-                ))}
-              </div>
-              <span className="text-slate-600">
-                {product.rating} ({product.reviews} reviews)
-              </span>
-            </div>
 
             {/* Price */}
             <div className="flex items-center gap-4 mb-6">
-              <span className="text-slate-500 line-through text-xl">
-                ${product.originalPrice}
-              </span>
+              {product.discount && product.discount > 0 && (
+                <span className="text-slate-500 line-through text-xl">
+                  ${originalPrice.toFixed(2)}
+                </span>
+              )}
               <span className="text-slate-900 text-4xl">
-                ${product.price}
+                ${price.toFixed(2)}
               </span>
-              <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm">
-                Save 25%
-              </span>
+              {product.discount && product.discount > 0 && (
+                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm">
+                  Save {discountPercent}%
+                </span>
+              )}
             </div>
 
             {/* Stock Status */}
             <div className="mb-6">
-              <span className="text-green-600 flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                In Stock
+              <span className={`flex items-center gap-2 ${inStock ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`w-2 h-2 rounded-full ${inStock ? 'bg-green-600' : 'bg-red-600'}`}></span>
+                {inStock ? 'In Stock' : 'Out of Stock'}
               </span>
             </div>
 
             {/* Description */}
             <p className="text-slate-600 mb-6 leading-relaxed">
-              {product.description}
+              {product.description || 'No description available.'}
             </p>
 
             {/* Quantity Selector */}
@@ -253,10 +407,17 @@ export function ProductDetailPage() {
                 <ShoppingCart className="w-5 h-5" />
                 {inStock ? 'Add to Cart' : 'Out of Stock'}
               </button>
-              <button className="bg-white border border-slate-200 p-4 rounded-lg hover:bg-slate-50 transition-all">
-                <Heart className="w-5 h-5 text-slate-600" />
+              <button
+                onClick={handleBuyNow}
+                disabled={!inStock}
+                className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white py-4 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+              >
+                Buy Now
               </button>
-              <button className="bg-white border border-slate-200 p-4 rounded-lg hover:bg-slate-50 transition-all">
+              <button
+                onClick={handleShare}
+                className="bg-white border border-slate-200 p-4 rounded-lg hover:bg-slate-50 transition-all"
+              >
                 <Share2 className="w-5 h-5 text-slate-600" />
               </button>
             </div>
@@ -288,7 +449,7 @@ export function ProductDetailPage() {
         >
           {/* Tabs */}
           <div className="flex gap-6 border-b border-slate-200 mb-8">
-            {["description", "features", "specifications", "reviews"].map((tab) => (
+            {["description", "features", "specifications"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -342,23 +503,169 @@ export function ProductDetailPage() {
                     <span className="text-slate-900">{product.category}</span>
                   </div>
                 )}
-                {product.supplier && (
-                  <div className="flex justify-between py-2 border-b border-slate-100">
-                    <span className="text-slate-600">Supplier</span>
-                    <span className="text-slate-900">{product.supplier.name}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "reviews" && (
-              <div>
-                <p className="text-slate-600">Reviews feature coming soon.</p>
               </div>
             )}
           </div>
         </motion.div>
       </div>
+
+      {/* Buy Now Modal */}
+      {showBuyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-slate-900 text-2xl font-bold">Place Your Order</h2>
+              <button
+                onClick={() => setShowBuyModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Shipping Address */}
+              <div>
+                <h3 className="text-slate-900 font-semibold mb-4">Shipping Address</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Full Name *"
+                    value={shippingInfo.fullName}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, fullName: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Phone"
+                    value={shippingInfo.phone}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, phone: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address *"
+                    value={shippingInfo.address}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, address: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:col-span-2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="City *"
+                    value={shippingInfo.city}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, city: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Zip Code *"
+                    value={shippingInfo.zipCode}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, zipCode: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Country *"
+                    value={shippingInfo.country}
+                    onChange={(e) => setShippingInfo({ ...shippingInfo, country: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:col-span-2"
+                  />
+                </div>
+              </div>
+
+              {/* Billing Address - Optional */}
+              <div>
+                <h3 className="text-slate-900 font-semibold mb-4">Billing Address (Optional)</h3>
+                <p className="text-slate-500 text-sm mb-4">Leave blank to use shipping address</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Full Name"
+                    value={billingInfo.fullName}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, fullName: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Phone"
+                    value={billingInfo.phone}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, phone: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address"
+                    value={billingInfo.address}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, address: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:col-span-2"
+                  />
+                  <input
+                    type="text"
+                    placeholder="City"
+                    value={billingInfo.city}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Zip Code"
+                    value={billingInfo.zipCode}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, zipCode: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Country"
+                    value={billingInfo.country}
+                    onChange={(e) => setBillingInfo({ ...billingInfo, country: e.target.value })}
+                    className="bg-slate-50 border border-slate-200 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 sm:col-span-2"
+                  />
+                </div>
+              </div>
+
+              {/* Order Summary */}
+              <div className="bg-slate-50 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-slate-600">Quantity:</span>
+                  <span className="text-slate-900 font-medium">{quantity}</span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-slate-600">Price:</span>
+                  <span className="text-slate-900 font-medium">${price.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                  <span className="text-slate-900 font-semibold">Total:</span>
+                  <span className="text-slate-900 font-bold text-xl">${(price * quantity).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleSubmitBuy}
+                disabled={processingBuy}
+                className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white py-3 rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                {processingBuy ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Placing Order...
+                  </>
+                ) : (
+                  'Place Order'
+                )}
+              </button>
+              <button
+                onClick={() => setShowBuyModal(false)}
+                disabled={processingBuy}
+                className="px-6 py-3 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-700 rounded-lg transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

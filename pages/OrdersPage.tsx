@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { ordersAPI } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { Loader2, X, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface OrderItem {
   product: {
@@ -20,9 +21,6 @@ interface SubOrder {
   items: OrderItem[];
   status: string;
   trackingNumber?: string;
-  supplier?: {
-    name: string;
-  };
 }
 
 interface Order {
@@ -39,29 +37,59 @@ export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await ordersAPI.getAll({ limit: 50 });
+      setOrders(response.orders || []);
+    } catch (err: any) {
+      console.error('Error fetching orders:', err);
+      if (err.response?.status === 401) {
+        router.push('/login');
+      } else {
+        setError(err.response?.data?.error || 'Failed to load orders');
+      }
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await ordersAPI.getAll({ limit: 50 });
-        setOrders(response.orders || []);
-      } catch (err: any) {
-        console.error('Error fetching orders:', err);
-        if (err.response?.status === 401) {
-          router.push('/login');
-        } else {
-          setError(err.response?.data?.error || 'Failed to load orders');
-        }
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
   }, [router]);
+
+  const handleCancelOrder = async (orderId: string) => {
+    // Use toast for confirmation instead of browser confirm to avoid page reload
+    const confirmed = window.confirm('Are you sure you want to cancel this order?');
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCancellingOrderId(orderId);
+      await ordersAPI.update(orderId, { status: 'CANCELLED' });
+      toast.success('Order cancelled successfully');
+      
+      // Update local state instead of full page reload
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'CANCELLED' }
+            : order
+        )
+      );
+    } catch (err: any) {
+      console.error('Error cancelling order:', err);
+      const errorMessage = err.response?.data?.error || 'Failed to cancel order';
+      toast.error(errorMessage);
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -91,7 +119,17 @@ export function OrdersPage() {
   return (
     <div className="min-h-screen bg-white py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-slate-900 mb-8 font-bold text-3xl sm:text-4xl">My Orders</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-slate-900 font-bold text-3xl sm:text-4xl">My Orders</h1>
+          <button
+            onClick={fetchOrders}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-lg transition-all"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -126,9 +164,35 @@ export function OrdersPage() {
                   <p className="text-slate-600 text-sm mt-1">Date: {formatDate(order.createdAt)}</p>
                   <p className="text-slate-600 text-sm">Total: ${parseFloat(order.totalAmount).toFixed(2)}</p>
                 </div>
-                <span className={`px-4 py-1.5 rounded-full text-sm font-medium self-start sm:self-center ${getStatusColor(order.status)}`}>
-                  {order.status}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className={`px-4 py-1.5 rounded-full text-sm font-medium self-start sm:self-center ${getStatusColor(order.status)}`}>
+                    {order.status}
+                  </span>
+                  {order.status === 'PENDING' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCancelOrder(order.id);
+                      }}
+                      disabled={cancellingOrderId === order.id}
+                      className="px-4 py-1.5 bg-red-500 hover:bg-red-600 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                    >
+                      {cancellingOrderId === order.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Cancelling...
+                        </>
+                      ) : (
+                        <>
+                          <X className="w-4 h-4" />
+                          Cancel Order
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Order Items */}
@@ -137,9 +201,6 @@ export function OrdersPage() {
                 <div className="space-y-4">
                   {order.subOrders.map((subOrder) => (
                     <div key={subOrder.id} className="space-y-2">
-                      {subOrder.supplier && (
-                        <p className="text-slate-500 text-xs">Supplier: {subOrder.supplier.name}</p>
-                      )}
                       {subOrder.items.map((item, index) => (
                         <div
                           key={index}
@@ -159,7 +220,7 @@ export function OrdersPage() {
                         </p>
                       )}
                     </div>
-                  )))}
+                  ))}
                 </div>
               </div>
             </div>

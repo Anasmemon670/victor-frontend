@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useRouter } from "next/navigation";
+import { productsAPI } from "@/lib/api";
 
 export function OtherOffers() {
   const [isVisible, setIsVisible] = useState(false);
@@ -29,6 +30,8 @@ export function OtherOffers() {
         setLoading(false);
       }
     };
+
+    fetchOffers();
   }, []);
 
   useEffect(() => {
@@ -145,27 +148,37 @@ export function OtherOffers() {
 
                         {/* Content */}
                         <div className="p-4 sm:p-6">
-                          {offer.discount && offer.discount > 0 && (
-                            <span className="bg-cyan-500 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-1 rounded-full inline-block mb-2 sm:mb-3">
-                              {offer.discount}% OFF
-                            </span>
-                          )}
-                          <h3 className="text-slate-900 text-lg sm:text-xl mb-2">{offer.title}</h3>
-                          <p className="text-slate-600 text-xs sm:text-sm mb-3 sm:mb-4">
-                            Quality products at competitive rates
-                          </p>
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-900 text-lg sm:text-xl">${parseFloat(offer.price).toFixed(2)}</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/product/${offer.slug || offer.id}`);
-                              }}
-                              className="text-cyan-600 hover:text-cyan-700 transition-colors text-xs sm:text-sm"
-                            >
-                              Learn More →
-                            </button>
+                          <div className="flex items-center justify-between mb-2">
+                            {offer.discount && offer.discount > 0 && (
+                              <span className="bg-cyan-500 text-white text-xs sm:text-sm px-2.5 sm:px-3 py-1 rounded-full inline-block">
+                                {offer.discount}% OFF
+                              </span>
+                            )}
+                            {offer.category && (
+                              <span className="text-cyan-600 text-xs">{offer.category}</span>
+                            )}
                           </div>
+                          <h3 className="text-slate-900 text-lg sm:text-xl mb-2">{offer.title}</h3>
+                          {offer.description && (
+                            <p className="text-slate-600 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
+                              {offer.description}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-900 text-lg sm:text-xl">${parseFloat(offer.price).toFixed(2)}</span>
+                            {offer.stock !== undefined && (
+                              <span className="text-slate-500 text-xs">Stock: {offer.stock}</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/product/${offer.slug || offer.id}`);
+                            }}
+                            className="w-full text-cyan-600 hover:text-cyan-700 transition-colors text-xs sm:text-sm text-center mt-2"
+                          >
+                            Learn More →
+                          </button>
                         </div>
                       </div>
                     </motion.div>

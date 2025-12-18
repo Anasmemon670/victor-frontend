@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { authAPI } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +33,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const initRef = useRef(false);
 
   const clearAuth = () => {
     setUser(null);
@@ -51,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
+
+      // Prevent multiple simultaneous calls
+      if (initRef.current) {
+        return;
+      }
+      initRef.current = true;
 
       try {
         const token = localStorage.getItem("accessToken");
@@ -71,11 +78,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Token expired or invalid, clear everything silently
             // Don't clear if it's a network error - might be backend not running
             console.error("Auth initialization error:", error);
-            // Only clear if it's an auth error (401/403), not network errors
+            // Only clear if it's an auth error (401/403), not network errors or rate limiting
             if (error && typeof error === 'object' && 'response' in error) {
               const axiosError = error as any;
-              if (axiosError.response?.status === 401 || axiosError.response?.status === 403) {
+              const status = axiosError.response?.status;
+              if (status === 401 || status === 403) {
                 clearAuth();
+              } else if (status === 429) {
+                // Rate limited - use saved user data, don't clear
+                try {
+                  const parsedUser = JSON.parse(savedUser);
+                  setUser(parsedUser);
+                } catch {
+                  // Invalid saved user, clear
+                  clearAuth();
+                }
               } else {
                 // Network error or other - keep saved user data
                 try {
@@ -104,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       } finally {
         setIsLoading(false);
+        initRef.current = false;
       }
     };
 
@@ -217,9 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(response.user);
         localStorage.setItem("user", JSON.stringify(response.user));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Refresh user error:", error);
-      clearAuth();
+      // Only clear auth if it's an authentication error (401/403), not network errors
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        clearAuth();
+      }
+      // For other errors (network, etc.), keep the user logged in
     }
   };
 

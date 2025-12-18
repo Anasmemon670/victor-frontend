@@ -93,7 +93,7 @@ export const authAPI = {
     marketingOptIn?: boolean
   }) => {
     try {
-      const response = await api.post('/auth/regrister', data)
+      const response = await api.post('/auth/register', data)
       return response.data
     } catch (error: any) {
       // Log detailed error for debugging
@@ -171,7 +171,6 @@ export const productsAPI = {
     category?: string
     search?: string
     featured?: boolean
-    supplierId?: string
   }) => {
     const queryParams = new URLSearchParams()
     if (params?.page) queryParams.append('page', params.page.toString())
@@ -179,7 +178,6 @@ export const productsAPI = {
     if (params?.category) queryParams.append('category', params.category)
     if (params?.search) queryParams.append('search', params.search)
     if (params?.featured) queryParams.append('featured', 'true')
-    if (params?.supplierId) queryParams.append('supplierId', params.supplierId)
 
     const response = await api.get(`/products?${queryParams.toString()}`)
     return response.data
@@ -197,7 +195,6 @@ export const productsAPI = {
     discount?: number
     hsCode: string
     category?: string
-    supplierId?: string
     stock?: number
     images?: string[]
     featured?: boolean
@@ -214,7 +211,6 @@ export const productsAPI = {
     discount?: number
     hsCode?: string
     category?: string
-    supplierId?: string | null
     stock?: number
     images?: string[]
     featured?: boolean
@@ -247,6 +243,7 @@ export const ordersAPI = {
   },
 
   create: async (data: {
+    userId?: string // Admin can specify userId
     items: Array<{ productId: string; quantity: number }>
     shippingAddress: {
       fullName: string
@@ -537,6 +534,14 @@ export const contactAPI = {
 
   delete: async (id: string) => {
     const response = await api.delete(`/contact/${id}`)
+    return response.data
+  },
+
+  reply: async (id: string, data: {
+    subject: string
+    message: string
+  }) => {
+    const response = await api.post(`/contact/${id}/reply`, data)
     return response.data
   },
 }

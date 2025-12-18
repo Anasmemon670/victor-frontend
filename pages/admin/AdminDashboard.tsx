@@ -13,7 +13,7 @@ import {
   Mail,
   Loader2
 } from "lucide-react";
-import { adminAPI, productsAPI, blogAPI, ordersAPI } from "@/lib/api";
+import { adminAPI, productsAPI, blogAPI, ordersAPI, servicesAPI, projectsAPI, contactAPI } from "@/lib/api";
 
 const dashboardCards = [
   {
@@ -84,18 +84,21 @@ export function AdminDashboard() {
         setStats(statsResponse.stats);
 
         // Fetch counts for other items
-        const [productsRes, blogRes] = await Promise.all([
+        const [productsRes, blogRes, servicesRes, projectsRes, contactRes] = await Promise.all([
           productsAPI.getAll({ limit: 1 }),
-          blogAPI.getAll({ limit: 1, published: false })
+          blogAPI.getAll({ limit: 1, published: false }),
+          servicesAPI.getAll({ limit: 1, active: false }),
+          projectsAPI.getAll({ limit: 1 }),
+          contactAPI.getAll({ limit: 1, archived: false })
         ]);
 
         setCounts({
           totalProducts: statsResponse.stats?.totalProducts || productsRes.pagination?.total || 0,
           totalBlogs: blogRes.pagination?.total || 0,
           totalOrders: statsResponse.stats?.totalOrders || 0,
-          totalProjects: 0, // Not implemented in backend
-          totalServices: 0, // Not implemented in backend
-          totalMessages: statsResponse.stats?.pendingReturns || 0, // Using pending returns as placeholder
+          totalProjects: projectsRes.pagination?.total || 0,
+          totalServices: servicesRes.pagination?.total || 0,
+          totalMessages: contactRes.pagination?.total || 0,
         });
       } catch (err: any) {
         console.error('Error fetching dashboard stats:', err);

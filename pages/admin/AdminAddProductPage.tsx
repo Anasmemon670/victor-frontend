@@ -38,10 +38,7 @@ export function AdminAddProductPage() {
     onOffer: false,
     bigOffer: false,
     productType: "internal",
-    externalUrl: "",
-    supplier: "no-supplier",
-    supplierProductId: "",
-    autoOrder: false
+    externalUrl: ""
   });
 
   const [images, setImages] = useState<string[]>([]);
@@ -71,10 +68,7 @@ export function AdminAddProductPage() {
               onOffer: false,
               bigOffer: product.featured || false,
               productType: "internal",
-              externalUrl: "",
-              supplier: product.supplierId || "no-supplier",
-              supplierProductId: "",
-              autoOrder: false
+              externalUrl: ""
             });
             if (product.images && Array.isArray(product.images) && product.images.length > 0) {
               setImages(product.images);
@@ -128,10 +122,6 @@ export function AdminAddProductPage() {
     if (formData.productType === "external" && !formData.externalUrl.trim()) {
       newErrors.externalUrl = "External URL is required for external products";
     }
-    
-    if (formData.supplier !== "no-supplier" && !formData.supplierProductId.trim()) {
-      newErrors.supplierProductId = "Supplier Product ID is required";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -151,12 +141,6 @@ export function AdminAddProductPage() {
       setSaving(true);
 
       // Prepare product data for API
-      // Only include supplierId if it's a valid UUID (not "no-supplier" or placeholder like "supplier-1")
-      const isValidSupplierId = formData.supplier && 
-        formData.supplier !== "no-supplier" && 
-        !formData.supplier.startsWith("supplier-") &&
-        formData.supplier.length > 10; // Basic UUID length check
-
       // Validate numeric fields
       const price = parseFloat(formData.price);
       if (isNaN(price) || price <= 0) {
@@ -203,41 +187,53 @@ export function AdminAddProductPage() {
       // - Mark as On Offer (formData.onOffer) -> featured (if true)
       // - Big Offer (formData.bigOffer) -> featured (if true, takes priority)
       // - Images (images array) -> images
-      // - Supplier (formData.supplier) -> supplierId (if valid)
       
       // Prepare product data - ensure all fields match backend schema
       // Backend expects: title (required), price (required), hsCode (required), stock (required)
-      // Optional fields should be null or undefined, not empty strings
-      productData = {
-        title: formData.name.trim(),
-        price: price,
-        description: formData.description.trim() || null, // Use null instead of undefined for optional fields
-        category: formData.category.trim() || null, // Use null for empty category
-        discount: discount > 0 ? discount : null, // Use null instead of undefined
-        featured: formData.bigOffer || formData.onOffer || false, // "Big Offer" or "On Offer" sets featured
-        images: processedImages && processedImages.length > 0 ? processedImages : null, // Use null for empty arrays
-        hsCode: formData.hsCode.trim(),
-        stock: stock,
-      };
-
-      // Only add supplierId if it's valid
-      if (isValidSupplierId) {
-        productData.supplierId = formData.supplier;
+      // For UPDATE: all fields are optional
+      // For CREATE: title, price, hsCode, stock are required
+      
+      if (isEdit && id) {
+        // UPDATE: Send all fields (all optional in update schema, but send them if they have values)
+        // For update, only include fields that are being changed
+        productData = {
+          title: formData.name.trim(),
+          price: price,
+          hsCode: formData.hsCode.trim(),
+          stock: stock,
+          ...(formData.description.trim() ? { description: formData.description.trim() } : {}),
+          ...(formData.category.trim() ? { category: formData.category.trim() } : {}),
+          ...(discount > 0 ? { discount: discount } : {}),
+          featured: formData.bigOffer || formData.onOffer || false,
+          ...(processedImages && processedImages.length > 0 ? { images: processedImages } : {}),
+        };
+      } else {
+        // CREATE: All required fields must be present
+        productData = {
+          title: formData.name.trim(),
+          price: price,
+          hsCode: formData.hsCode.trim(),
+          stock: stock,
+          ...(formData.description.trim() ? { description: formData.description.trim() } : {}),
+          ...(formData.category.trim() ? { category: formData.category.trim() } : {}),
+          ...(discount > 0 ? { discount: discount } : {}),
+          featured: formData.bigOffer || formData.onOffer || false,
+          ...(processedImages && processedImages.length > 0 ? { images: processedImages } : {}),
+        };
       }
 
-      // Remove undefined values to avoid validation issues
-      // Zod schema accepts null for optional fields but undefined might cause issues
+      // Remove undefined values but keep null values for optional fields
       const cleanedProductData: any = {}
       Object.keys(productData).forEach(key => {
         const value = productData[key as keyof typeof productData]
-        // Only include the field if it's not undefined
-        // null values are allowed for optional fields
+        // Include field if it's not undefined (null is allowed for optional fields)
         if (value !== undefined) {
           cleanedProductData[key] = value
         }
       })
 
       console.log('Sending product data to API:', JSON.stringify(cleanedProductData, null, 2));
+      console.log('Is Edit Mode:', isEdit, 'Product ID:', id);
 
       if (isEdit && id) {
         // Update existing product - use cleaned data
@@ -253,9 +249,8 @@ export function AdminAddProductPage() {
     } catch (err: any) {
       console.error('Error saving product:', err);
       console.error('Full error response:', err.response?.data);
-      if (productData) {
-        console.error('Request data sent:', productData);
-      }
+      console.error('Error status:', err.response?.status);
+      console.error('Request data that was sent:', productData);
       
       // Log validation errors in detail
       if (err.response?.data?.details) {
@@ -561,58 +556,6 @@ export function AdminAddProductPage() {
             </div>
           </div>
 
-          {/* Supplier Integration */}
-          <div className="bg-gradient-to-br from-blue-900/30 to-indigo-900/30 border border-blue-500/30 rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-blue-400 text-xl">🔗</span>
-              <h2 className="text-white text-xl">Supplier Integration</h2>
-            </div>
-
-            <div className="mb-4">
-              <label className="text-slate-300 text-sm mb-2 block">Supplier</label>
-              <select
-                value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                <option value="no-supplier">No Supplier Integration</option>
-                <option value="supplier-1">Supplier 1 - TechDistributor Inc.</option>
-                <option value="supplier-2">Supplier 2 - GlobalWholesale Co.</option>
-                <option value="supplier-3">Supplier 3 - DirectSource Ltd.</option>
-              </select>
-            </div>
-
-            {formData.supplier !== "no-supplier" && (
-              <>
-                <div className="mb-4">
-                  <label className="text-slate-300 text-sm mb-2 block">Supplier Product ID *</label>
-                  <input
-                    type="text"
-                    value={formData.supplierProductId}
-                    onChange={(e) => setFormData({ ...formData, supplierProductId: e.target.value })}
-                    placeholder="e.g., SKU-ABC12345"
-                    className={`w-full px-4 py-3 bg-slate-700 border ${errors.supplierProductId ? 'border-red-500' : 'border-slate-600'} text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500`}
-                  />
-                  {errors.supplierProductId && <p className="text-red-400 text-xs mt-1">{errors.supplierProductId}</p>}
-                </div>
-                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.autoOrder}
-                      onChange={(e) => setFormData({ ...formData, autoOrder: e.target.checked })}
-                      className="w-5 h-5 text-cyan-500 bg-slate-700 border-slate-600 rounded focus:ring-2 focus:ring-cyan-500"
-                    />
-                    <span className="text-slate-300">Auto Order Enabled</span>
-                  </label>
-                  <p className="text-slate-400 text-sm mt-2 ml-8">
-                    Automatically place order with supplier when customer orders this product
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
           {/* Submit Buttons */}
           <div className="flex gap-4">
             <button
@@ -644,3 +587,4 @@ export function AdminAddProductPage() {
 }
 
 export default AdminAddProductPage;
+export { AdminAddProductPage };

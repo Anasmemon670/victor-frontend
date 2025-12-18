@@ -13,8 +13,12 @@ interface Offer {
   title: string;
   price: string;
   discount?: number;
+  description?: string;
+  category?: string;
+  stock?: number;
   images?: string[] | null;
   slug?: string;
+  featured?: boolean;
 }
 
 export function OffersPage() {
@@ -168,6 +172,16 @@ export function OffersPage() {
 
                     {/* Content */}
                     <div className="p-5">
+                      <div className="flex items-center justify-between mb-2">
+                        {product.category && (
+                          <span className="text-cyan-600 text-xs sm:text-sm">{product.category}</span>
+                        )}
+                        {product.featured && (
+                          <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full">
+                            Featured
+                          </span>
+                        )}
+                      </div>
                       <h3
                         onClick={() => router.push(`/product/${product.slug || product.id}`)}
                         className="text-slate-900 text-lg mb-2 cursor-pointer hover:text-cyan-600 transition-colors"
@@ -175,13 +189,24 @@ export function OffersPage() {
                         {product.title}
                       </h3>
 
-                      {/* Price */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-slate-900 text-2xl font-semibold">${price.toFixed(2)}</span>
-                        {product.discount && product.discount > 0 && (
-                          <span className="text-slate-500 line-through text-sm">
-                            ${originalPrice.toFixed(2)}
-                          </span>
+                      {product.description && (
+                        <p className="text-slate-600 text-sm mb-3 line-clamp-2">
+                          {product.description}
+                        </p>
+                      )}
+
+                      {/* Price and Stock */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-900 text-xl sm:text-2xl font-semibold">${price.toFixed(2)}</span>
+                          {product.discount && product.discount > 0 && (
+                            <span className="text-slate-500 line-through text-sm">
+                              ${originalPrice.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                        {product.stock !== undefined && (
+                          <span className="text-slate-500 text-xs">Stock: {product.stock}</span>
                         )}
                       </div>
 

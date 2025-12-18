@@ -13,8 +13,12 @@ interface Product {
   id: string;
   title: string;
   price: string;
+  description?: string;
+  category?: string;
+  stock?: number;
   images?: string[] | null;
   slug?: string;
+  featured?: boolean;
 }
 
 export function OtherProducts() {
@@ -60,12 +64,23 @@ export function OtherProducts() {
     };
   }, []);
 
+  const itemsPerSlide = 3; // Show 3 products per slide on desktop
+  const maxSlide = Math.max(0, Math.ceil(products.length / itemsPerSlide) - 1);
+  
+  // Check if we can go left or right
+  const canGoLeft = currentSlide > 0;
+  const canGoRight = currentSlide < maxSlide && products.length > itemsPerSlide;
+
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 3 >= products.length ? 0 : prev + 3));
+    if (canGoRight) {
+      setCurrentSlide((prev) => Math.min(prev + 1, maxSlide));
+    }
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 3 < 0 ? Math.max(0, products.length - 3) : prev - 3));
+    if (canGoLeft) {
+      setCurrentSlide((prev) => Math.max(prev - 1, 0));
+    }
   };
 
   if (products.length === 0 && !loading) {
@@ -101,108 +116,143 @@ export function OtherProducts() {
           </button>
         </motion.div>
 
-        {/* Products Grid */}
+        {/* Products Carousel */}
         <div className="relative">
           {/* Navigation Buttons */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white shadow-lg rounded-full p-3 hover:bg-slate-50 transition-all hidden lg:block"
-          >
-            <ChevronLeft className="w-6 h-6 text-slate-700" />
-          </button>
-          <button
-            onClick={nextSlide}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white shadow-lg rounded-full p-3 hover:bg-slate-50 transition-all hidden lg:block"
-          >
-            <ChevronRight className="w-6 h-6 text-slate-700" />
-          </button>
+          {canGoLeft && (
+            <button
+              onClick={prevSlide}
+              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-white shadow-lg rounded-full p-3 hover:bg-slate-50 transition-all hidden lg:block"
+            >
+              <ChevronLeft className="w-6 h-6 text-slate-700" />
+            </button>
+          )}
+          {canGoRight && (
+            <button
+              onClick={nextSlide}
+              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-white shadow-lg rounded-full p-3 hover:bg-slate-50 transition-all hidden lg:block"
+            >
+              <ChevronRight className="w-6 h-6 text-slate-700" />
+            </button>
+          )}
 
-          {/* Grid/Carousel */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product, index) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={isVisible ? { opacity: 1, y: 0 } : {}}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                onClick={() => router.push(`/product/${product.id}`)}
-                className="bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500"
-              >
-                {/* Image */}
-                <div className="h-48 sm:h-56 overflow-hidden">
-                  <ImageWithFallback
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
+          {/* Carousel */}
+          <div className="overflow-hidden">
+            <motion.div
+              className="flex gap-6"
+              animate={{ 
+                x: currentSlide === 0 ? '0%' : `-${currentSlide * (100 / itemsPerSlide)}%`
+              }}
+              transition={{ duration: 0.5, ease: "easeInOut" }}
+            >
+              {loading ? (
+                <div className="text-center py-12 w-full">
+                  <p className="text-slate-600">Loading products...</p>
                 </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <h3 className="text-slate-900 text-xl mb-2 group-hover:text-cyan-600 transition-colors">
-                    {product.name}
-                  </h3>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${i < Math.floor(product.rating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-slate-300"
-                            }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-slate-600 text-sm">
-                      {product.rating} ({product.reviews})
-                    </span>
-                  </div>
-
-                  <p className="text-slate-600 text-sm mb-4">
-                    High-quality product with premium features and design.
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-900 text-2xl">
-                      ${product.price.toFixed(2)}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart({
-                          id: product.id,
-                          name: product.name,
-                          price: product.price,
-                          image: product.image
-                        });
-                        toast.success(`${product.name} added to cart!`, {
-                          duration: 2000,
-                        });
-                      }}
-                      className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg transition-all transform hover:scale-105"
+              ) : products.length === 0 ? (
+                <div className="text-center py-12 w-full">
+                  <p className="text-slate-600">No products available.</p>
+                </div>
+              ) : (
+                products.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={isVisible ? { opacity: 1, scale: 1 } : {}}
+                    transition={{ duration: 0.6, delay: index * 0.1 }}
+                    className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/3"
+                  >
+                    <div
+                      onClick={() => router.push(`/product/${product.slug || product.id}`)}
+                      className="bg-white rounded-xl overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-slate-200 hover:border-cyan-500 h-full"
                     >
-                      Add to Cart
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                      {/* Image */}
+                      <div className="h-48 sm:h-56 overflow-hidden">
+                        <ImageWithFallback
+                          src={product.images?.[0] || ''}
+                          alt={product.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-6">
+                        <div className="flex items-center justify-between mb-2">
+                          {product.category && (
+                            <span className="text-cyan-600 text-xs sm:text-sm">{product.category}</span>
+                          )}
+                          {product.featured && (
+                            <span className="bg-cyan-500 text-white text-xs px-2 py-1 rounded-full">
+                              Featured
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-slate-900 text-xl mb-2 group-hover:text-cyan-600 transition-colors">
+                          {product.title}
+                        </h3>
+
+                        {product.description && (
+                          <p className="text-slate-600 text-sm mb-3 line-clamp-2">
+                            {product.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <span className="text-slate-900 text-xl sm:text-2xl">
+                              ${parseFloat(product.price).toFixed(2)}
+                            </span>
+                            {product.stock !== undefined && (
+                              <p className="text-slate-500 text-xs mt-1">Stock: {product.stock}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart({
+                                id: product.id,
+                                name: product.title,
+                                price: parseFloat(product.price),
+                                image: product.images?.[0] || ''
+                              });
+                              toast.success(`${product.title} added to cart!`, {
+                                duration: 2000,
+                              });
+                            }}
+                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg transition-all transform hover:scale-105"
+                          >
+                            Add to Cart
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </motion.div>
           </div>
 
           {/* Mobile Navigation */}
           <div className="flex lg:hidden justify-center gap-4 mt-8">
             <button
               onClick={prevSlide}
-              className="bg-white shadow-lg rounded-full p-2 hover:bg-slate-50 transition-all"
+              disabled={!canGoLeft}
+              className={`bg-white shadow-lg rounded-full p-2 transition-all ${
+                canGoLeft 
+                  ? 'hover:bg-slate-50 cursor-pointer' 
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
             >
               <ChevronLeft className="w-5 h-5 text-slate-700" />
             </button>
             <button
               onClick={nextSlide}
-              className="bg-white shadow-lg rounded-full p-2 hover:bg-slate-50 transition-all"
+              disabled={!canGoRight}
+              className={`bg-white shadow-lg rounded-full p-2 transition-all ${
+                canGoRight 
+                  ? 'hover:bg-slate-50 cursor-pointer' 
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
             >
               <ChevronRight className="w-5 h-5 text-slate-700" />
             </button>
